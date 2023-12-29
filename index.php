@@ -42,23 +42,30 @@ switch($_SERVER['REQUEST_METHOD']) {
         echo html_writer::end_tag('form');
         break;
     case 'POST':
+        echo html_writer::start_tag('p') . "Handling POST request." . html_writer::end_tag('p');
         $uploaddir = '/tmp/uploads';
         $uploadedfile = $uploaddir . basename($_FILES['archive']['name']);
         if ($_FILES['archive']['type'] === "application/zip") {
+            echo html_writer::start_tag('p') . "File is recognized as a zip archive." . html_writer::end_tag('p');
             $zip = new ZipArchive;
             $open_res = $zip->open($_FILES['archive']['tmp_name']);
             if ($open_res === TRUE) {
-                $zip->extractTo('/tmp/ . basename($_FILES['archive']['name']));
+		$location = '/tmp/' . basename($_FILES['archive']['name']);
+		if (substr($location, -4) === ".zip") {
+		    $location = substr($location, 0, strlen($location) - 4);
+		}
+                $zip->extractTo($location);
                 $zip->close();
                 echo html_writer::start_tag('p') . "Check /tmp for contents." . html_writer::end_tag('p');
             }
             else {
                 echo html_writer::start_tag('p') . "Failed to open zip archive." . html_writer::end_tag('p');
-            }
+	    }
         }
         else {
             echo html_writer::start_tag('p') . "File is not recognized as a zip archive." . html_writer::end_tag('p');
         }
+        echo html_writer::start_tag('p') . "Done handling POST request." . html_writer::end_tag('p');
         break;
 }
 echo $OUTPUT->footer();
