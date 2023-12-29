@@ -44,11 +44,20 @@ switch($_SERVER['REQUEST_METHOD']) {
     case 'POST':
         $uploaddir = '/tmp/uploads';
         $uploadedfile = $uploaddir . basename($_FILES['archive']['name']);
-        if (move_uploaded_file($_FILES['archive']['tmp_name'], $uploadedfile)) {        
-            echo html_writer::start_tag('p') . "Check /tmp for file." . html_writer::end_tag('p');
+        if ($_FILES['archive']['type'] === "application/zip") {
+            $zip = new ZipArchive;
+            $open_res = $zip->open($_FILES['archive']['tmp_name']);
+            if ($open_res === TRUE) {
+                $zip->extractTo('/tmp/ . basename($_FILES['archive']['name']));
+                $zip->close();
+                echo html_writer::start_tag('p') . "Check /tmp for contents." . html_writer::end_tag('p');
+            }
+            else {
+                echo html_writer::start_tag('p') . "Failed to open zip archive." . html_writer::end_tag('p');
+            }
         }
         else {
-            echo html_writer::start_tag('p') . "Could not move file." . html_writer::end_tag('p');
+            echo html_writer::start_tag('p') . "File is not recognized as a zip archive." . html_writer::end_tag('p');
         }
         break;
 }
