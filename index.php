@@ -29,14 +29,27 @@ $context = context_system::instance();
 $PAGE->set_context($context);
 $PAGE->set_url(new moodle_url('/local/distance/index.php'));
 $PAGE->set_pagelayout('standard'); // Zodat we blocks hebben.
-
 $PAGE->set_title($SITE->fullname);
 $PAGE->set_heading(get_string('pluginname', 'local_distance'));
 
 echo $OUTPUT->header();
-echo html_writer::start_tag('p');
-echo html_writer::start_tag('input', array('type' => 'file', 'id' => 'archive-upload-button'));
-echo html_writer::end_tag('input');
-echo html_writer::end_tag('p');
-
+switch($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+        echo html_writer::start_tag('form', array('enctype' => 'multipart/form-data', 'action' => '#', 'method' => 'POST'));
+        echo html_writer::start_tag('input', array('type' => 'file', 'id' => 'archive-upload-button', 'name' => 'archive'));
+        echo html_writer::end_tag('input');
+        echo html_writer::start_tag('input', array('type' => 'submit', 'value' => 'Upload archive'));
+        echo html_writer::end_tag('form');
+        break;
+    case 'POST':
+        $uploaddir = '/tmp/uploads';
+        $uploadedfile = $uploaddir . basename($_FILES['archive']['name']);
+        if (move_uploaded_file($_FILES['archive']['tmp_name'], $uploadedfile)) {        
+            echo html_writer::start_tag('p') . "Check /tmp for file." . html_writer::end_tag('p');
+        }
+        else {
+            echo html_writer::start_tag('p') . "Could not move file." . html_writer::end_tag('p');
+        }
+        break;
+}
 echo $OUTPUT->footer();
