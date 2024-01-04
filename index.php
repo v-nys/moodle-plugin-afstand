@@ -57,6 +57,18 @@ switch($_SERVER['REQUEST_METHOD']) {
                 $zip->extractTo($location);
                 $zip->close();
                 echo html_writer::start_tag('p') . "Check /tmp for contents." . html_writer::end_tag('p');
+                // TODO: maak nu de topics aan op basis van unlocking_conditions.json
+                // 1. (x) deserialize JSON
+                // 2. (x) itereer over de topics (volgorde? is output wel gesorteerd? denk het niet...)
+                // 3. (-) maak een moodle topic aan per topic, zonder extra voorwaarden
+                // 4. (-) voeg telkens een "afwerkopdracht" toe
+                // 5. (-) zorg dat dit demonstreert dat het hele spel werkt
+                $unlocking_contents = file_get_contents($location . "unlocking_conditions.json");
+                $unlocking_conditions = json_decode($unlocking_contents, true);
+                // note: PHP associative arrays are ordered
+                foreach($unlocking_conditions as $key => $value) {
+                    echo $key . ": " . $value;
+                }
             }
             else {
                 echo html_writer::start_tag('p') . "Failed to open zip archive." . html_writer::end_tag('p');
