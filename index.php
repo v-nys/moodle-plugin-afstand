@@ -37,7 +37,7 @@ function create_course_topic($DB, $course, $key, $course_module_ids, $topic_offs
     $offset = 2; // next available section number, can compute this later on...
     var_dump($key); // for debugging, indicates which section is an issue
     $record = new stdClass;
-    $record->course = 2;
+    $record->course = intval($course->id);
     $record->section = $offset + $topic_offset;
     $record->name = $key;
     $record->summary = "";
@@ -63,7 +63,7 @@ switch($_SERVER['REQUEST_METHOD']) {
         $uploadedfile = $uploaddir . basename($_FILES['archive']['name']);
         // Cursus voorlopig hardgecodeerd op 2
         // Zou goed idee zijn hier dropdown ofzo voor te geven...
-        $course = $DB->get_record('course', ['id' => 2]);
+        $course = $DB->get_record('course', ['id' => 3]);
         if ($_FILES['archive']['type'] === "application/zip") {
             echo html_writer::start_tag('p') . "File is recognized as a zip archive." . html_writer::end_tag('p');
             $zip = new ZipArchive;
@@ -83,7 +83,7 @@ switch($_SERVER['REQUEST_METHOD']) {
                 // 4. (-) voeg telkens een "afwerkopdracht" toe (grep desktop naar beschrijvende tekst)
                 // 5. (-) voeg voorwaarden toe via tweede foreach lus
                 // 6. (-) zorg dat dit demonstreert dat het hele spel werkt
-                $unlocking_contents = file_get_contents($location . "unlocking_conditions.json");
+                $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
                 $unlocking_conditions = json_decode($unlocking_contents, true);
                 $course_module_ids = array();
                 $section_offset = 0;
