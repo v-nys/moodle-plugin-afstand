@@ -166,6 +166,26 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 $zip->extractTo($location);
                 $zip->close();
                 echo html_writer::start_tag('p') . "Archive extracted to /tmp." . html_writer::end_tag('p');
+
+                // create a section for the course "map"
+                $record = new stdClass;
+                $record->course = intval($course->id);
+                $record->section = 1; // TODO: take into account offset...
+                $record->name = $key;
+                $record->summary = "";
+                $record->summaryformat = 1;
+                $record->sequence = "";
+                $record->visible = 1;
+                $maps_section_id = $DB->insert_record('course_sections', $record);
+                $svgs = glob($location . "/*.svg");
+                // not sure if I'll get abs paths or what...
+                var_dump($svgs);
+                foreach ($svgs as $svg) {
+                    $fileinfo = [
+                        'contextid' => $context->id
+                    ];
+                    // $fs->create_file_from_pathname($fileinfo, $svg);
+                }
                 $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
                 $unlocking_conditions = json_decode($unlocking_contents, true);
                 // intended keys: moodle_id, manual_completion_id
