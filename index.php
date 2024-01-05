@@ -34,6 +34,7 @@ $PAGE->set_heading(get_string('pluginname', 'local_distance'));
 
 function create_course_topic($DB, $course, $key, $course_module_ids, $topic_offset)
 {
+    $preceding_course_module_id_in_section = -1;
     $offset = 2; // next available section number, can compute this later on...
     var_dump($key); // for debugging, indicates which section is an issue
     $record = new stdClass;
@@ -44,7 +45,66 @@ function create_course_topic($DB, $course, $key, $course_module_ids, $topic_offs
     $record->summaryformat = 1;
     $record->sequence = "";
     $record->visible = 1;
+    // note: in original plugin this had another layer
+    // this is because all topic data (assignment IDs,...) was tracked
     $course_module_ids[$key] = $DB->insert_record('course_sections', $record);
+
+    // add assignment for manual completion
+    list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $offset + $topic_offset);
+    $data->name = "Manueel aanduiden via het vinkje: \"$key\" is duidelijk";
+    $data->course = $course;
+    $data->intro = text_to_html("Markeer deze activiteit handmatig als voltooid als $key duidelijk is.", false, false, true);
+    $data->printintro = true;
+    $data->showintro = true;
+    $data->introformat = FORMAT_HTML;
+    $data->alwaysshowdescription = false; // to do with temporal aspect
+    $data->visibleoncoursepage = true;
+    $data->nosubmissions = 1;
+    $data->submissiondrafts = 0;
+    $data->sendnotifications = 0;
+    $data->sendlatenotifications = 0;
+    $data->sendstudentnotifications = 0;
+    $data->requiresubmissionstatement = 0;
+    $data->allowsubmissionsfromdate = 0;
+    $data->grade = 0;
+    $data->duedate = 0;
+    $data->markingworkflow = 0;
+    $data->markingallocation = 0;
+    $data->teamsubmission = 0;
+    $data->requireallteammemberssubmit = 0;
+    $data->gradingduedate = 0;
+    $data->cutoffdate = 0;
+    $data->hidegrader = 0;
+    $data->blindmarking = 0;
+    $data->revealidentities = 0;
+    $data->teamsubmissiongroupingid = 0;
+    $data->maxattempts = -1; // unlimited
+    $data->attemptreopenmethod = 'none';
+    $data->preventsubmissionnotingroup = 0;
+    $data->requiresubmissionstatement = 0;
+    $data->completionview = COMPLETION_VIEW_NOT_REQUIRED; // means viewing does not count towards completion, which we want
+    // note: only possible to track completion for enrolled (even admin) users!
+    $data->completion = COMPLETION_TRACKING_MANUAL;
+    $data->completionexpected = 0;
+    $data->completionunlocked = "1"; // see add_moduleinfo definition
+    $data->completiongradeitemnumber = NULL;
+    // NOTE: won't be the case until we add links, assignments,...
+    if ($preceding_course_module_id_in_section >= 0) {
+        $availability = array(
+            "op" => "&",
+            "c" => [
+                array(
+                    "type" => "completion",
+                    "cm" => "$preceding_course_module_id_in_section",
+                    "e" => 1
+                )
+            ],
+            "showc" => [true]
+        );
+        $data->availability = json_encode($availability);
+    }
+    add_moduleinfo($data, $course);
+    $preceding_course_module_id_in_section = $data->coursemodule; // not using, could be for later
     return $course_module_ids;
 }
 
@@ -120,12 +180,13 @@ switch($_SERVER['REQUEST_METHOD']) {
                 $course_module_ids = array();
                 $section_offset = 0;
                 foreach($unlocking_conditions as $key => $value) {
+                    // TODO: do I really need to mutate *and* return?
                     $course_module_ids = create_course_topic($DB, $course, $key, $course_module_ids, $section_offset);
                     $section_offset++;
                 }
                 foreach($unlocking_conditions as $key => $value) {
-                    // TODO: add completion conditions by performing lookup in $course_module_ids
-		    // associative arrays are relevant BTW
+                    // TODO: add completion conditions to right section by performing lookup in $course_module_ids
+		            // associative arrays are relevant BTW
                 }
             }
             else {
