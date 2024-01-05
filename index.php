@@ -24,6 +24,7 @@ require_once($CFG->dirroot . '/course/modlib.php');
 require_once($CFG->dirroot . '/mod/quiz/locallib.php');
 require_once($CFG->libdir . '/filelib.php');
 require_login(); // Moet van code checker...
+$FRANKENSTYLE_PLUGIN_NAME = 'local_distance';
 
 $context = context_system::instance();
 $PAGE->set_context($context);
@@ -170,22 +171,36 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 // create a section for the course "map"
                 $record = new stdClass;
                 $record->course = intval($course->id);
-                $record->section = 1; // TODO: take into account offset...
+                $maps_section_number = 1; // TODO: take into account offset...
+                $record->section = $maps_section_number; 
                 $record->name = "overview";
                 $record->summary = "Hier vind je \"kaarten\" van de verschillende onderwerpen die in de cursus behandeld worden.";
                 $record->summaryformat = 1;
                 $record->sequence = "";
                 $record->visible = 1;
                 $maps_section_id = $DB->insert_record('course_sections', $record);
-                $svgs = glob($location . "/*.svg");
-                // not sure if I'll get abs paths or what...
-                var_dump($svgs);
-                foreach ($svgs as $svg) {
+                $absolute_svg_paths = glob($location . "/*.svg"); // produces absolute paths
+                $fs = get_file_storage();
+                $map_files = array();
+                foreach ($absolute_svg_paths as $absolute_svg_path) {
                     $fileinfo = [
-                        'contextid' => $context->id
+                        'contextid' => $context->id,
+                        'component' => $FRANKENSTYLE_PLUGIN_NAME,
+                        'filearea' => 'navigation', // not a fixed name, see https://moodledev.io/docs/apis/subsystems/files#naming-file-areas
+                        'itemid' => 0, // explanation at https://moodledev.io/docs/apis/subsystems/files#file-areas is still a little hazy, but there is only one navigation area per course...
+                        'filepath' => $absolute_svg_path . "/", // doesn't seem to have anything to do with actual file system based on docs above
+                        'filename' => basename($absolute_svg_path)
                     ];
-                    // $fs->create_file_from_pathname($fileinfo, $svg);
+                    $storedfile = $fs->create_file_from_pathname($fileinfo, $absolute_svg_path);
+                    $map_files[basename($absolute_svg_path,".svg")] = $storedfile;
                 }
+                // TODO: don't try to create resources for the files
+                // this is pretty unclear
+                // instead, look at https://moodledev.io/docs/apis/subsystems/files#serving-files-to-users
+                list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'resource', $maps_section_number);
+                $data->name = "kaart";
+                $data->introformat = FORMAT_HTML;
+                add_moduleinfo($data, $course);
                 $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
                 $unlocking_conditions = json_decode($unlocking_contents, true);
                 // intended keys: moodle_id, manual_completion_id
