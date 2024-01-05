@@ -52,18 +52,49 @@ echo $OUTPUT->header();
 switch($_SERVER['REQUEST_METHOD']) {
     case 'GET':
         echo html_writer::start_tag('form', array('enctype' => 'multipart/form-data', 'action' => '#', 'method' => 'POST'));
+
+        $courses = $DB->get_records('course', []);
+        echo html_writer::start_tag('div');
+        echo html_writer::start_tag('label', array('for' => 'course-select-dropdown'));
+        echo "Import into course:";
+        echo html_writer::end_tag('label');
+        echo html_writer::start_tag('select', array('id' => 'course-select-dropdown', 'name' => 'course'));
+	foreach($courses as $course) {
+	    echo html_writer::start_tag('option', array('value' => $course->id));
+            echo $course->fullname;
+	    echo html_writer::end_tag('option');
+	}
+        echo html_writer::end_tag('select');
+        echo html_writer::end_tag('div');
+
+        echo html_writer::start_tag('div');
+        echo html_writer::start_tag('label', array('for' => 'archive-upload-button'));
+	echo "Archive:";
+        echo html_writer::end_tag('label');
         echo html_writer::start_tag('input', array('type' => 'file', 'id' => 'archive-upload-button', 'name' => 'archive'));
         echo html_writer::end_tag('input');
-        echo html_writer::start_tag('input', array('type' => 'submit', 'value' => 'Upload archive'));
+        echo html_writer::end_tag('div');
+
+        echo html_writer::start_tag('div', array());
+        echo html_writer::start_tag('label', array('for' => 'empty-course-checkbox'));
+	echo "Empty existing course:";
+        echo html_writer::end_tag('label');
+        echo html_writer::start_tag('input', array('type' => 'checkbox', 'checked' => true, 'id' => 'empty-course-checkbox', 'name' => 'empty-course', 'value' => 'yes'));
+        echo html_writer::end_tag('input');
+        echo html_writer::end_tag('div');
+
+        echo html_writer::start_tag('input', array('type' => 'submit', 'value' => 'Create course'));
         echo html_writer::end_tag('form');
         break;
     case 'POST':
         echo html_writer::start_tag('p') . "Handling POST request." . html_writer::end_tag('p');
         $uploaddir = '/tmp/uploads';
         $uploadedfile = $uploaddir . basename($_FILES['archive']['name']);
-        // Cursus voorlopig hardgecodeerd op 2
-        // Zou goed idee zijn hier dropdown ofzo voor te geven...
-        $course = $DB->get_record('course', ['id' => 3]);
+        $course = $DB->get_record('course', ['id' => intval($_POST['course'])]);
+	if (isset($_POST['empty-course']) && $_POST['empty-course'] == 'yes') {
+		$DB->delete_records('course_modules', array('course' => $course->id));
+		$DB->delete_records('course_sections', array('course' => $course->id));
+	}
         if ($_FILES['archive']['type'] === "application/zip") {
             echo html_writer::start_tag('p') . "File is recognized as a zip archive." . html_writer::end_tag('p');
             $zip = new ZipArchive;
@@ -75,7 +106,7 @@ switch($_SERVER['REQUEST_METHOD']) {
                 }
                 $zip->extractTo($location);
                 $zip->close();
-                echo html_writer::start_tag('p') . "Check /tmp for contents." . html_writer::end_tag('p');
+                echo html_writer::start_tag('p') . "Archive extracted to /tmp." . html_writer::end_tag('p');
                 // TODO: maak nu de topics aan op basis van unlocking_conditions.json
                 // 1. (x) deserialize JSON
                 // 2. (x) itereer over de topics (volgorde? is output wel gesorteerd? denk het niet...)
@@ -85,17 +116,16 @@ switch($_SERVER['REQUEST_METHOD']) {
                 // 6. (-) zorg dat dit demonstreert dat het hele spel werkt
                 $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
                 $unlocking_conditions = json_decode($unlocking_contents, true);
+		// associative array, maps namespaced text IDs to moodle IDs (ints)
                 $course_module_ids = array();
                 $section_offset = 0;
-                // note: PHP associative arrays are ordered
-                // value should be an associative array with entries allOf and oneOf
                 foreach($unlocking_conditions as $key => $value) {
                     $course_module_ids = create_course_topic($DB, $course, $key, $course_module_ids, $section_offset);
                     $section_offset++;
-                    var_dump($course_module_ids);
                 }
                 foreach($unlocking_conditions as $key => $value) {
                     // TODO: add completion conditions by performing lookup in $course_module_ids
+		    // associative arrays are relevant BTW
                 }
             }
             else {
