@@ -171,8 +171,8 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 $record = new stdClass;
                 $record->course = intval($course->id);
                 $record->section = 1; // TODO: take into account offset...
-                $record->name = $key;
-                $record->summary = "";
+                $record->name = "overview";
+                $record->summary = "Hier vind je \"kaarten\" van de verschillende onderwerpen die in de cursus behandeld worden.";
                 $record->summaryformat = 1;
                 $record->sequence = "";
                 $record->visible = 1;
