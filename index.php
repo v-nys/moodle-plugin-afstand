@@ -32,6 +32,22 @@ $PAGE->set_pagelayout('standard'); // Zodat we blocks hebben.
 $PAGE->set_title($SITE->fullname);
 $PAGE->set_heading(get_string('pluginname', 'local_distance'));
 
+function create_course_topic($DB, $course, $key, $course_module_ids, $topic_offset)
+{
+    $offset = 2; // next available section number, can compute this later on...
+    var_dump($key); // for debugging, indicates which section is an issue
+    $record = new stdClass;
+    $record->course = 2;
+    $record->section = $offset + $topic_offset;
+    $record->name = $key;
+    $record->summary = "";
+    $record->summaryformat = 1;
+    $record->sequence = "";
+    $record->visible = 1;
+    $course_module_ids[$key] = $DB->insert_record('course_sections', $record);
+    return $course_module_ids;
+}
+
 echo $OUTPUT->header();
 switch($_SERVER['REQUEST_METHOD']) {
     case 'GET':
@@ -45,34 +61,45 @@ switch($_SERVER['REQUEST_METHOD']) {
         echo html_writer::start_tag('p') . "Handling POST request." . html_writer::end_tag('p');
         $uploaddir = '/tmp/uploads';
         $uploadedfile = $uploaddir . basename($_FILES['archive']['name']);
+        // Cursus voorlopig hardgecodeerd op 2
+        // Zou goed idee zijn hier dropdown ofzo voor te geven...
+        $course = $DB->get_record('course', ['id' => 2]);
         if ($_FILES['archive']['type'] === "application/zip") {
             echo html_writer::start_tag('p') . "File is recognized as a zip archive." . html_writer::end_tag('p');
             $zip = new ZipArchive;
             $open_res = $zip->open($_FILES['archive']['tmp_name']);
             if ($open_res === TRUE) {
-		$location = '/tmp/' . basename($_FILES['archive']['name']);
-		if (substr($location, -4) === ".zip") {
-		    $location = substr($location, 0, strlen($location) - 4);
-		}
+                $location = '/tmp/' . basename($_FILES['archive']['name']);
+                if (substr($location, -4) === ".zip") {
+                    $location = substr($location, 0, strlen($location) - 4);
+                }
                 $zip->extractTo($location);
                 $zip->close();
                 echo html_writer::start_tag('p') . "Check /tmp for contents." . html_writer::end_tag('p');
                 // TODO: maak nu de topics aan op basis van unlocking_conditions.json
                 // 1. (x) deserialize JSON
                 // 2. (x) itereer over de topics (volgorde? is output wel gesorteerd? denk het niet...)
-                // 3. (-) maak een moodle topic aan per topic, zonder extra voorwaarden
-                // 4. (-) voeg telkens een "afwerkopdracht" toe
-                // 5. (-) zorg dat dit demonstreert dat het hele spel werkt
+                // 3. (x) maak een moodle topic aan per topic, zonder extra voorwaarden
+                // 4. (-) voeg telkens een "afwerkopdracht" toe (grep desktop naar beschrijvende tekst)
+                // 5. (-) voeg voorwaarden toe via tweede foreach lus
+                // 6. (-) zorg dat dit demonstreert dat het hele spel werkt
                 $unlocking_contents = file_get_contents($location . "unlocking_conditions.json");
                 $unlocking_conditions = json_decode($unlocking_contents, true);
+                $course_module_ids = array();
+                $section_offset = 0;
                 // note: PHP associative arrays are ordered
+                // value should be an associative array with entries allOf and oneOf
                 foreach($unlocking_conditions as $key => $value) {
-                    echo $key . ": " . $value;
+                    $course_module_ids = create_course_topic($DB, $course, $key, $course_module_ids, $section_offset);
+                    $section_offset++;
+                }
+                foreach($unlocking_conditions as $key => $value) {
+                    // TODO: add completion conditions by performing lookup in $course_module_ids
                 }
             }
             else {
                 echo html_writer::start_tag('p') . "Failed to open zip archive." . html_writer::end_tag('p');
-	    }
+            }
         }
         else {
             echo html_writer::start_tag('p') . "File is not recognized as a zip archive." . html_writer::end_tag('p');
