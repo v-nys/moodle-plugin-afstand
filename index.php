@@ -92,6 +92,7 @@ switch($_SERVER['REQUEST_METHOD']) {
                 foreach($unlocking_conditions as $key => $value) {
                     $course_module_ids = create_course_topic($DB, $course, $key, $course_module_ids, $section_offset);
                     $section_offset++;
+                    var_dump($course_module_ids);
                 }
                 foreach($unlocking_conditions as $key => $value) {
                     // TODO: add completion conditions by performing lookup in $course_module_ids
