@@ -188,51 +188,49 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 };
                 foreach ($unlocking_conditions as $key => $completion_criteria) {
                     if ($completion_criteria) {
-                    $course_section_id = $course_module_ids[$key]['moodle_id'];
-                    $course_section_record = $DB->get_record('course_sections', ['id' => $course_section_id]);
-                    $all_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['allOf']);
-                    $one_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['oneOf']);
-                    $all_type_conditions = array_map($completion_id_to_condition, $all_type_dependency_completion_ids);
-                    $one_type_conditions = array_map($completion_id_to_condition, $one_type_dependency_completion_ids);
-                    // Moodle does not apply logical meaning (empty conjunction = true / empty disjunction = false)
-                    // otherwise, conjunction && disjunction would be sufficient
-                    $conjunction = array(
-                        "op" => "&",
-                        "c" => $all_type_conditions,
-                        "show" => true
-                    );
-                    $disjunction = array(
-                        "op" => "|",
-                        "c" => $one_type_conditions,
-                        "show" => false
-                    );
-                    $criteria = [];
-                    if (count($all_type_conditions) > 0 && count($one_type_conditions) > 0) {
-                        $availability = array(
+                        $course_section_id = $course_module_ids[$key]['moodle_id'];
+                        $course_section_record = $DB->get_record('course_sections', ['id' => $course_section_id]);
+                        $all_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['allOf']);
+                        $one_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['oneOf']);
+                        $all_type_conditions = array_map($completion_id_to_condition, $all_type_dependency_completion_ids);
+                        $one_type_conditions = array_map($completion_id_to_condition, $one_type_dependency_completion_ids);
+                        // Moodle does not apply logical meaning (empty conjunction = true / empty disjunction = false)
+                        // otherwise, conjunction && disjunction would be sufficient
+                        $conjunction = array(
                             "op" => "&",
-                            "c" => [$conjunction, $disjunction],
-                            "showc" => [true, false]
+                            "c" => $all_type_conditions,
+                            "show" => true
                         );
-                    }
-                    else if (count($one_type_conditions) > 0) {
-                        $availability = $disjunction;
-                    }
-                    else {
-                        // if disjunct is empty (whether there are prerequisites or not)
-                        // the activity cannot be accessed
-                        $availability = array(
+                        $disjunction = array(
                             "op" => "|",
-                            "c" => [array(
-                            "type" => "profile",
-                            "sf" => "firstname",
-                            "op" => "isequalto",
-                            "v" => "dummy_first_name_to_simulate_false"
-                            )],
+                            "c" => $one_type_conditions,
                             "show" => false
                         );
-                    }
-                    $course_section_record->availability = json_encode($availability);
-                    $DB->update_record('course_sections', $course_section_record);
+                        $criteria = [];
+                        if (count($all_type_conditions) > 0 && count($one_type_conditions) > 0) {
+                            $availability = array(
+                                "op" => "&",
+                                "c" => [$conjunction, $disjunction],
+                                "showc" => [true, false]
+                            );
+                        } else if (count($one_type_conditions) > 0) {
+                            $availability = $disjunction;
+                        } else {
+                            // if disjunct is empty (whether there are prerequisites or not)
+                            // the activity cannot be accessed
+                            $availability = array(
+                                "op" => "|",
+                                "c" => [array(
+                                    "type" => "profile",
+                                    "sf" => "firstname",
+                                    "op" => "isequalto",
+                                    "v" => "dummy_first_name_to_simulate_false"
+                                )],
+                                "show" => false
+                            );
+                        }
+                        $course_section_record->availability = json_encode($availability);
+                        $DB->update_record('course_sections', $course_section_record);
                     }
                 }
             } else {
