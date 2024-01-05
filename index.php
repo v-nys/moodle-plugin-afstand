@@ -45,10 +45,8 @@ function create_course_topic($DB, $course, $key, $course_module_ids, $topic_offs
     $record->summaryformat = 1;
     $record->sequence = "";
     $record->visible = 1;
-    // note: in original plugin this had another layer
-    // this is because all topic data (assignment IDs,...) was tracked
-    $course_module_ids[$key] = $DB->insert_record('course_sections', $record);
-
+    $course_module_ids[$key] = array();
+    $course_module_ids[$key]['moodle_id'] = $DB->insert_record('course_sections', $record);
     // add assignment for manual completion
     list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $offset + $topic_offset);
     $data->name = "Manueel aanduiden via het vinkje: \"$key\" is duidelijk";
@@ -104,12 +102,13 @@ function create_course_topic($DB, $course, $key, $course_module_ids, $topic_offs
         $data->availability = json_encode($availability);
     }
     add_moduleinfo($data, $course);
-    $preceding_course_module_id_in_section = $data->coursemodule; // not using, could be for later
+    $preceding_course_module_id_in_section = $data->coursemodule;
+    $course_module_ids[$key]['manual_completion_id'] = $data->coursemodule;
     return $course_module_ids;
 }
 
 echo $OUTPUT->header();
-switch($_SERVER['REQUEST_METHOD']) {
+switch ($_SERVER['REQUEST_METHOD']) {
     case 'GET':
         echo html_writer::start_tag('form', array('enctype' => 'multipart/form-data', 'action' => '#', 'method' => 'POST'));
 
@@ -119,17 +118,17 @@ switch($_SERVER['REQUEST_METHOD']) {
         echo "Import into course:";
         echo html_writer::end_tag('label');
         echo html_writer::start_tag('select', array('id' => 'course-select-dropdown', 'name' => 'course'));
-	foreach($courses as $course) {
-	    echo html_writer::start_tag('option', array('value' => $course->id));
+        foreach ($courses as $course) {
+            echo html_writer::start_tag('option', array('value' => $course->id));
             echo $course->fullname;
-	    echo html_writer::end_tag('option');
-	}
+            echo html_writer::end_tag('option');
+        }
         echo html_writer::end_tag('select');
         echo html_writer::end_tag('div');
 
         echo html_writer::start_tag('div');
         echo html_writer::start_tag('label', array('for' => 'archive-upload-button'));
-	echo "Archive:";
+        echo "Archive:";
         echo html_writer::end_tag('label');
         echo html_writer::start_tag('input', array('type' => 'file', 'id' => 'archive-upload-button', 'name' => 'archive'));
         echo html_writer::end_tag('input');
@@ -137,7 +136,7 @@ switch($_SERVER['REQUEST_METHOD']) {
 
         echo html_writer::start_tag('div', array());
         echo html_writer::start_tag('label', array('for' => 'empty-course-checkbox'));
-	echo "Empty existing course:";
+        echo "Empty existing course:";
         echo html_writer::end_tag('label');
         echo html_writer::start_tag('input', array('type' => 'checkbox', 'checked' => true, 'id' => 'empty-course-checkbox', 'name' => 'empty-course', 'value' => 'yes'));
         echo html_writer::end_tag('input');
@@ -151,10 +150,10 @@ switch($_SERVER['REQUEST_METHOD']) {
         $uploaddir = '/tmp/uploads';
         $uploadedfile = $uploaddir . basename($_FILES['archive']['name']);
         $course = $DB->get_record('course', ['id' => intval($_POST['course'])]);
-	if (isset($_POST['empty-course']) && $_POST['empty-course'] == 'yes') {
-		$DB->delete_records('course_modules', array('course' => $course->id));
-		$DB->delete_records('course_sections', array('course' => $course->id));
-	}
+        if (isset($_POST['empty-course']) && $_POST['empty-course'] == 'yes') {
+            $DB->delete_records('course_modules', array('course' => $course->id));
+            $DB->delete_records('course_sections', array('course' => $course->id));
+        }
         if ($_FILES['archive']['type'] === "application/zip") {
             echo html_writer::start_tag('p') . "File is recognized as a zip archive." . html_writer::end_tag('p');
             $zip = new ZipArchive;
@@ -171,29 +170,58 @@ switch($_SERVER['REQUEST_METHOD']) {
                 // 1. (x) deserialize JSON
                 // 2. (x) itereer over de topics (volgorde? is output wel gesorteerd? denk het niet...)
                 // 3. (x) maak een moodle topic aan per topic, zonder extra voorwaarden
-                // 4. (-) voeg telkens een "afwerkopdracht" toe (grep desktop naar beschrijvende tekst)
+                // 4. (x) voeg telkens een "afwerkopdracht" toe (grep desktop naar beschrijvende tekst)
                 // 5. (-) voeg voorwaarden toe via tweede foreach lus
                 // 6. (-) zorg dat dit demonstreert dat het hele spel werkt
                 $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
                 $unlocking_conditions = json_decode($unlocking_contents, true);
-		// associative array, maps namespaced text IDs to moodle IDs (ints)
+                // intended keys: moodle_id, manual_completion_id
                 $course_module_ids = array();
                 $section_offset = 0;
-                foreach($unlocking_conditions as $key => $value) {
+                foreach ($unlocking_conditions as $key => $value) {
                     // TODO: do I really need to mutate *and* return?
                     $course_module_ids = create_course_topic($DB, $course, $key, $course_module_ids, $section_offset);
                     $section_offset++;
                 }
-                foreach($unlocking_conditions as $key => $value) {
-                    // TODO: add completion conditions to right section by performing lookup in $course_module_ids
-		            // associative arrays are relevant BTW
+                $namespaced_id_to_completion_id = function ($namespaced_id) use ($course_module_ids) {
+                    return $course_module_ids[$namespaced_id]['manual_completion_id'];
+                };
+                $completion_id_to_condition = function ($cm_id) {
+                    return array(
+                        "type" => "completion",
+                        "cm" => $cm_id,
+                        "e" => 1
+                    );
+                };
+                foreach ($unlocking_conditions as $key => $completion_criteria) {
+                    $course_section_id = $course_module_ids[$key]['moodle_id'];
+                    $course_section_record = $DB->get_record('course_sections', ['id' => $course_section_id]);
+                    $all_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['allOf']);
+                    $one_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['oneOf']);
+                    $all_type_conditions = array_map($completion_id_to_condition, $all_type_dependency_completion_ids);
+                    $one_type_conditions = array_map($completion_id_to_condition, $one_type_dependency_completion_ids);
+                    $conjunction = array(
+                        "op" => "&",
+                        "c" => $all_type_conditions,
+                        "show" => true
+                    );
+                    $disjunction = array(
+                        "op" => "|",
+                        "c" => $one_type_conditions,
+                        "show" => false
+                    );
+                    $availability = array(
+                        "op" => "&",
+                        "c" => [$conjunction, $disjunction],
+                        "showc" => [true, false]
+                    );
+                    $course_section_record->availability = json_encode($availability);
+                    $DB->update_record('course_sections', $course_section_record);
                 }
-            }
-            else {
+            } else {
                 echo html_writer::start_tag('p') . "Failed to open zip archive." . html_writer::end_tag('p');
             }
-        }
-        else {
+        } else {
             echo html_writer::start_tag('p') . "File is not recognized as a zip archive." . html_writer::end_tag('p');
         }
         echo html_writer::start_tag('p') . "Done handling POST request." . html_writer::end_tag('p');
