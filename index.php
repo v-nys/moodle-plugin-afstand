@@ -166,13 +166,6 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 $zip->extractTo($location);
                 $zip->close();
                 echo html_writer::start_tag('p') . "Archive extracted to /tmp." . html_writer::end_tag('p');
-                // TODO: maak nu de topics aan op basis van unlocking_conditions.json
-                // 1. (x) deserialize JSON
-                // 2. (x) itereer over de topics (volgorde? is output wel gesorteerd? denk het niet...)
-                // 3. (x) maak een moodle topic aan per topic, zonder extra voorwaarden
-                // 4. (x) voeg telkens een "afwerkopdracht" toe (grep desktop naar beschrijvende tekst)
-                // 5. (-) voeg voorwaarden toe via tweede foreach lus
-                // 6. (-) zorg dat dit demonstreert dat het hele spel werkt
                 $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
                 $unlocking_conditions = json_decode($unlocking_contents, true);
                 // intended keys: moodle_id, manual_completion_id
@@ -194,6 +187,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
                     );
                 };
                 foreach ($unlocking_conditions as $key => $completion_criteria) {
+                    if ($completion_criteria) {
                     $course_section_id = $course_module_ids[$key]['moodle_id'];
                     $course_section_record = $DB->get_record('course_sections', ['id' => $course_section_id]);
                     $all_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['allOf']);
@@ -217,6 +211,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
                     );
                     $course_section_record->availability = json_encode($availability);
                     $DB->update_record('course_sections', $course_section_record);
+                    }
                 }
             } else {
                 echo html_writer::start_tag('p') . "Failed to open zip archive." . html_writer::end_tag('p');
