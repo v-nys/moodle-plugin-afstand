@@ -174,33 +174,37 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 $maps_section_number = 1; // TODO: take into account offset...
                 $record->section = $maps_section_number; 
                 $record->name = "overview";
-                $record->summary = "Hier vind je \"kaarten\" van de verschillende onderwerpen die in de cursus behandeld worden.";
+                $record->summary = "Hier vind je een \"kaart\" van de verschillende onderwerpen die in de cursus behandeld worden.";
                 $record->summaryformat = 1;
                 $record->sequence = "";
                 $record->visible = 1;
                 $maps_section_id = $DB->insert_record('course_sections', $record);
-                $absolute_svg_paths = glob($location . "/*.svg"); // produces absolute paths
+                $absolute_svg_path = $location . "/course_structure.svg";
                 $fs = get_file_storage();
-                $map_files = array();
-                foreach ($absolute_svg_paths as $absolute_svg_path) {
+                
                     $fileinfo = [
                         'contextid' => $context->id,
                         'component' => $FRANKENSTYLE_PLUGIN_NAME,
                         'filearea' => 'navigation', // not a fixed name, see https://moodledev.io/docs/apis/subsystems/files#naming-file-areas
                         'itemid' => 0, // explanation at https://moodledev.io/docs/apis/subsystems/files#file-areas is still a little hazy, but there is only one navigation area per course...
-                        'filepath' => $absolute_svg_path . "/", // doesn't seem to have anything to do with actual file system based on docs above
+                        'filepath' => dirname($absolute_svg_path) . "/", // doesn't seem to have anything to do with actual file system based on docs above
                         'filename' => basename($absolute_svg_path)
                     ];
-                    $storedfile = $fs->create_file_from_pathname($fileinfo, $absolute_svg_path);
-                    $map_files[basename($absolute_svg_path,".svg")] = $storedfile;
-                }
-                // TODO: don't try to create resources for the files
-                // this is pretty unclear
-                // instead, look at https://moodledev.io/docs/apis/subsystems/files#serving-files-to-users
-                list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'resource', $maps_section_number);
-                $data->name = "kaart";
-                $data->introformat = FORMAT_HTML;
-                add_moduleinfo($data, $course);
+                    // TODO: delete pre-existing file (but take care not to delete material from other courses!)
+                    // isn't there an 'overwrite' flag...?
+                    // maybe https://moodle.org/mod/forum/discuss.php?d=376267 ?
+                    $map_file = $fs->create_file_from_pathname($fileinfo, $absolute_svg_path);
+                    $map_url = moodle_url::make_pluginfile_url(
+                        $map_file->get_contextid(),
+                        $map_file->get_component(),
+                        $map_file->get_filearea(),
+                        $map_file->get_itemid(),
+                        $map_file->get_filepath(),
+                        $map_file->get_filename(),
+                        false // Do not force download of the file.
+                    );
+                var_dump($map_url); // just to see if there is a URL that seems to make sense
+                
                 $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
                 $unlocking_conditions = json_decode($unlocking_contents, true);
                 // intended keys: moodle_id, manual_completion_id
