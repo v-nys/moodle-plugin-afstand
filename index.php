@@ -36,8 +36,9 @@ $PAGE->set_heading(get_string('pluginname', 'local_distance'));
 // first section to be created will just be number 1
 $next_created_section_number = 1;
 
-function create_course_topic($DB, $course, $key, $topic_section_metadata)
+function create_course_topic($DB, $course, $key, $topic_section_produced_metadata, $topic_section_consumed_metadata, $topic_section_location)
 {
+
     var_dump($key); // for debugging, in case some sections are created and process ends midway
     $preceding_course_module_id_in_section = -1; // first course module will be numbered 0
     $section_number = $next_created_section_number;
@@ -46,15 +47,17 @@ function create_course_topic($DB, $course, $key, $topic_section_metadata)
     $record = new stdClass;
     $record->course = intval($course->id);
     $record->section = $section_number;
-    $record->name = $key; // TODO: make this node title instead
+    $record->name = $topic_section_consumed_metadata["title"];
     $record->summary = ""; // could add icon and short description here...
     $record->summaryformat = 1;
     $record->sequence = "";
     $record->visible = 1;
-    $topic_section_metadata[$key] = array();
-    $topic_section_metadata[$key]['moodle_section_id'] = $DB->insert_record('course_sections', $record);
+    $topic_section_produced_metadata[$key] = array();
+    $topic_section_produced_metadata[$key]['moodle_section_id'] = $DB->insert_record('course_sections', $record);
 
-    
+    foreach($topic_section_consumed_metadata["assignments"] as $assignment) {
+        echo html_writer::start_tag('p') . "Still need to create an assignment." . html_writer::end_tag('p');
+    }
 
     // add final assignment for manual completion
     list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
@@ -113,8 +116,8 @@ function create_course_topic($DB, $course, $key, $topic_section_metadata)
     add_moduleinfo($data, $course);
 
     $preceding_course_module_id_in_section = $data->coursemodule;
-    $topic_section_metadata[$key]['manual_completion_assignment_id'] = $data->coursemodule;
-    return $topic_section_metadata;
+    $topic_section_produced_metadata[$key]['manual_completion_assignment_id'] = $data->coursemodule;
+    return $topic_section_produced_metadata;
 }
 
 echo $OUTPUT->header();
@@ -177,13 +180,22 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
                 $unlocking_conditions = json_decode($unlocking_contents, true);
                 // intended keys: moodle_section_id, manual_completion_assignment_id
-                $topic_section_metadata = array();
+                $topic_section_produced_metadata = array();
                 foreach ($unlocking_conditions as $key => $value) {
                     // TODO: do I really need to mutate *and* return?
-                    $topic_section_metadata = create_course_topic($DB, $course, $key, $topic_section_metadata);
+                    $id_components = explode("__", $key);
+                    $cluster_name = $id_components[0];
+                    $unnamespaced_id = $id_components[1];
+                    $cluster_folder = $location . "/" . $cluster_name;
+                    $cluster_metadata = yaml_parse_file($cluster_folder . "/contents.lc.yaml");
+                    // there should always be an entry for which the predicate succeeds
+                    $topic_section_consumed_metadata = array_filter($cluster_metadata["nodes"], function($node_metadata) use ($unnamespaced_id) {
+                        return $node_metadata["id"] === $unnamespaced_id;
+                    })[0];
+                    $topic_section_produced_metadata = create_course_topic($DB, $course, $key, $topic_section_produced_metadata, $topic_section_consumed_metadata, $cluster_folder . "/" . $unnamespaced_id);
                 }
-                $namespaced_id_to_completion_id = function ($namespaced_id) use ($topic_section_metadata) {
-                    return $topic_section_metadata[$namespaced_id]['manual_completion_assignment_id'];
+                $namespaced_id_to_completion_id = function ($namespaced_id) use ($topic_section_produced_metadata) {
+                    return $topic_section_produced_metadata[$namespaced_id]['manual_completion_assignment_id'];
                 };
                 $completion_id_to_condition = function ($cm_id) {
                     return array(
@@ -194,7 +206,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 };
                 foreach ($unlocking_conditions as $key => $completion_criteria) {
                     if ($completion_criteria) {
-                        $course_section_id = $topic_section_metadata[$key]['moodle_section_id'];
+                        $course_section_id = $topic_section_produced_metadata[$key]['moodle_section_id'];
                         $course_section_record = $DB->get_record('course_sections', ['id' => $course_section_id]);
                         $all_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['allOf']);
                         $one_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['oneOf']);
