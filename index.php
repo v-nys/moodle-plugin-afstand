@@ -40,6 +40,8 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
 {
 
     var_dump($key); // for debugging, in case some sections are created and process ends midway
+    
+    global $next_created_section_number;
     $preceding_course_module_id_in_section = -1; // first course module will be numbered 0
     $section_number = $next_created_section_number;
     $next_created_section_number += 1;
@@ -55,9 +57,12 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
     $topic_section_produced_metadata[$key] = array();
     $topic_section_produced_metadata[$key]['moodle_section_id'] = $DB->insert_record('course_sections', $record);
 
+    // TODO: property may nog exist
     foreach($topic_section_consumed_metadata["assignments"] as $assignment) {
         echo html_writer::start_tag('p') . "Still need to create an assignment." . html_writer::end_tag('p');
     }
+    
+    echo html_writer::start_tag('p') . "Still need to add page element (i.e. lesson contents) and potentially URLs." . html_writer::end_tag('p');
 
     // add final assignment for manual completion
     list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
@@ -182,16 +187,19 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 // intended keys: moodle_section_id, manual_completion_assignment_id
                 $topic_section_produced_metadata = array();
                 foreach ($unlocking_conditions as $key => $value) {
-                    // TODO: do I really need to mutate *and* return?
                     $id_components = explode("__", $key);
                     $cluster_name = $id_components[0];
                     $unnamespaced_id = $id_components[1];
                     $cluster_folder = $location . "/" . $cluster_name;
-                    $cluster_metadata = yaml_parse_file($cluster_folder . "/contents.lc.yaml");
-                    // there should always be an entry for which the predicate succeeds
-                    $topic_section_consumed_metadata = array_filter($cluster_metadata["nodes"], function($node_metadata) use ($unnamespaced_id) {
-                        return $node_metadata["id"] === $unnamespaced_id;
-                    })[0];
+                    $raw_cluster_data = file_get_contents($cluster_folder . "/contents.lc.json");
+                    $cluster_metadata = json_decode($raw_cluster_data, true);
+                    $topic_section_consumed_metadata = null;
+                    foreach($cluster_metadata["nodes"] as $node_metadata) {
+                        if ($node_metadata["id"] === $unnamespaced_id) {
+                            $topic_section_consumed_metadata = $node_metadata;
+                        }
+                    }
+                    // TODO: do I really need to mutate *and* return?
                     $topic_section_produced_metadata = create_course_topic($DB, $course, $key, $topic_section_produced_metadata, $topic_section_consumed_metadata, $cluster_folder . "/" . $unnamespaced_id);
                 }
                 $namespaced_id_to_completion_id = function ($namespaced_id) use ($topic_section_produced_metadata) {
@@ -257,7 +265,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
         } else {
             echo html_writer::start_tag('p') . "File is not recognized as a zip archive." . html_writer::end_tag('p');
         }
-        echo html_writer::start_tag('p') . "Done handling POST request." . html_writer::end_tag('p');
+        echo html_writer::start_tag('p') . "Course recreation is complete." . html_writer::end_tag('p');
         break;
 }
 echo $OUTPUT->footer();
