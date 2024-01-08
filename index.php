@@ -88,29 +88,27 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
                         // TODO !!!
                         // misschien zijn de aanpassingen niet allemaal wat ze eerst lijken
                         // want mod_assign was in de oude versie nergens aanwezig...
-                        'contextid' => $context->id, // TODO: dit is alvast verkeerd! file verschijnt in listing als ik dit in DB aanpas...
+                        'contextid' => $course->id, // twijfel, maar leek te werken in oude versie
                         // lastig! log van $module, $context, $cw,... toont *nergens* het ID dat ik in de DB moet invullen (alles gelogd, ctrl-f op dat ID gedaan...)
-                        'component' => "mod_assign", // has to match in order for file to show up in listing
-                        'filearea'  => 'introattachment', // same as for manually created ones...
-                        'itemid'    => 0, // manually created attachments seem to just have 0, so...
+                        //'component' => $FRANKENSTYLE_PLUGIN_NAME, // has to match in order for file to show up in listing
+                        'filearea'  => "draft", // same as for manually created ones...
+                        'itemid'    => file_get_unused_draft_itemid(),
                         'filepath'  => "/", // beïnvloedt weergave attachment als in mapjes
                         'filename'  => $attachment_filename,
+                        // here goes nothing
+                        'component' => "user",
+                        'license' => 'unknown',
+                        'author' => 'script',
+                        'timecreated' => 1660045452, // kan wrs weg
+                        'timemodified' => 1660045452, // idem
+                        'userid' => 2, // weg?
+                        'sortorder' => 0,
+                        'source' => null
                     ];
-                    // if the file already exists, delete it from the database, because create_... does not overwrite
-                    // als er attachments getoond moeten worden, runt deze code om te renderen:
-                    // $postfix = $this->render_area_files('mod_assign', ASSIGN_INTROATTACHMENT_FILEAREA, 0);
-                    // dat geeft dan weer
-                    // $this->get_renderer()->assign_files($this->context, $submissionid, $area, $component)
-                    // die functie staat in renderer.php
-                    // daar staat dan weer
-                    // return $this->render(new assign_files($context, $userid, $filearea, $component))
-                    // merk op: new
-                    // dus we maken een instantie met deze waarden
-                    // valt op dat component hier aanwezig is, kan meespelen...
-                    // zie de klasse assign_files, lijkt alsof de constructor aangeeft hoe files getoond zullen worden
-                    // het gevoel dat ik hier heb, is dat het context ID eigenlijk niet klopt
-                    $DB->delete_records('files', ["filepath" => $assignment_folder_location . "/", "filename" => $attachment_filename]);
+                    // TODO: ik denk dat dit te veel gaat wissen
+                    $DB->delete_records('files', ["filepath" => "/", "filename" => $attachment_filename]);
                     $attachment_storedfile = get_file_storage()->create_file_from_pathname($attachment_filerecord, $attachment_location);
+                    // get_file_storage()->create_file_from_storedfile($attachment_filerecord, intval($attachment_original_file->id));
                     array_push($attached_files, $attachment_storedfile->get_itemid());
                 }
             }
