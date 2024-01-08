@@ -91,10 +91,16 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
             $human_counter = $assignment_counter_for_topic + 1;
             $data->name = "Opdracht $human_counter $topic_title: $description";
             $data->course = $course;
-            var_dump($assignment_description_location);
             $intro = file_get_contents($assignment_description_location);
-            var_dump($intro);
-            $data->intro = text_to_html($intro, false, false, true);
+            $data->intro = "<p dir=\"ltr\" style=\"text-align: left;\">lukt het zo wel?<br></p>";//text_to_html($intro, false, false, true);
+            // TODO FIXME: misschien te maken met add_moduleinfo?
+            // zie locallib.php: daar komt toekenning via ->intro wel voor
+            // ergens anders niet
+            // spitballing: add_moduleinfo mist deze velden?
+            $data->description = [
+                "text" => "misschien zo?",
+                "format"=> FORMAT_HTML,
+            ];
             $data->introformat = FORMAT_HTML;
             $data->alwaysshowdescription = false;
             $data->submissiondrafts = 0;
@@ -148,6 +154,10 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
                 $data->availability = json_encode($availability);
             }
             $result = add_moduleinfo($data, $course);
+            var_dump($result);
+            // next 2 lines seems to be needed because add_moduleinfo does not handle the intro field
+            $data->id = $result->instance;
+            $result = $DB->update_record('assign', $data);
             array_push($topic_section_produced_metadata[$key]['assignments'], $data->coursemodule);
             $preceding_course_module_id_in_section = $data->coursemodule;
             $overall_assignment_counter += 1;
@@ -161,7 +171,11 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
     $title = $topic_section_consumed_metadata["title"];
     $data->name = "Manueel aanduiden via het vinkje: \"$title\" is duidelijk";
     $data->course = $course;
+    // dit verschijnt niet, heeft dit te maken met ontbreken van veld rond regel 430 in mod/assign/externallib.php?
+    // zie mss ook mod/assign/mod_form.php...
     $data->intro = text_to_html("Markeer deze activiteit handmatig als voltooid als $key duidelijk is.", false, false, true);
+    $data->content = "Who knows?";
+    $data->text = "This might appear...";
     $data->printintro = true;
     $data->showintro = true;
     $data->introformat = FORMAT_HTML;
@@ -248,7 +262,15 @@ switch ($_SERVER['REQUEST_METHOD']) {
 
         echo html_writer::start_tag('input', array('type' => 'submit', 'value' => 'Recreate course'));
         echo html_writer::end_tag('form');
+
+        // for testing only!
+        $existing_assignment = $DB->get_record('assign', ['id' => 9303]);
+        $existing_assignment->intro = "PLEASE WORK!";
+        $DB->update_record('assign', $existing_assignment);
         break;
+
+        
+
     case 'POST':
         $course = $DB->get_record('course', ['id' => intval($_POST['course'])]);
         $DB->delete_records('course_modules', array('course' => $course->id));
