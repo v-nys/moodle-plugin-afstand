@@ -155,9 +155,12 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
             }
             $result = add_moduleinfo($data, $course);
             var_dump($result);
-            // next 2 lines seems to be needed because add_moduleinfo does not handle the intro field
+            // update seems to be needed because add_moduleinfo does not handle the intro field
             $data->id = $result->instance;
-            $result = $DB->update_record('assign', $data);
+            $existing_assignment = $DB->get_record('assign', ['id'=> $result->instance]);
+            var_dump($existing_assignment);
+            $existing_assignment->intro = $intro;
+            $result = $DB->update_record('assign', $existing_assignment);
             array_push($topic_section_produced_metadata[$key]['assignments'], $data->coursemodule);
             $preceding_course_module_id_in_section = $data->coursemodule;
             $overall_assignment_counter += 1;
