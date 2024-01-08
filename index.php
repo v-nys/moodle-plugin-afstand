@@ -35,154 +35,118 @@ $PAGE->set_heading(get_string('pluginname', 'local_distance'));
 
 // first section to be created will just be number 1
 $next_created_section_number = 1;
+$overall_assignment_counter = 0;
 
 function create_course_topic($DB, $course, $key, $topic_section_produced_metadata, $topic_section_consumed_metadata, $topic_section_location)
 {
 
     var_dump($key); // for debugging, in case some sections are created and process ends midway
-    
+
     global $next_created_section_number;
+    global $FRANKENSTYLE_PLUGIN_NAME;
+    global $overall_assignment_counter;
+
     $preceding_course_module_id_in_section = -1; // first course module will be numbered 0
     $section_number = $next_created_section_number;
     $next_created_section_number += 1;
+    $topic_title = $topic_section_consumed_metadata["title"];
 
     $record = new stdClass;
     $record->course = intval($course->id);
     $record->section = $section_number;
-    $record->name = $topic_section_consumed_metadata["title"];
+    $record->name = $topic_title;
     $record->summary = ""; // could add icon and short description here...
     $record->summaryformat = 1;
     $record->sequence = "";
     $record->visible = 1;
     $topic_section_produced_metadata[$key] = array();
     $topic_section_produced_metadata[$key]['moodle_section_id'] = $DB->insert_record('course_sections', $record);
-
-    $assignment_counter_for_topic = 0;
-    // HIER WORDEN ASSIGNMENTS AANGEMAAKT
-    // TODO: property may not exist, which leads to warning in Moodle
-    /*
-    foreach ($topic_section_consumed_metadata["assignments"] as $assignment) {
-        $description = $assignment['title'];
-        $assignment_counter_for_topic = $assignment_counter_for_topic + 1;
-        // step 0: prep file metadata
-        // TODO: vanaf hier nakijken, explode lijkt al meteen minder geschikt dan gewoon gebruik basename...
-        $path_components = explode('/', $assignment['path']);
-        $without_filename = array_slice($path_components, 0, count($path_components) - 1);
-        $filepath = implode('/', $without_filename);
-        $filepath .= '/';
-        $filename = $path_components[count($path_components) - 1];
-        $admin_user_id = 2;
-        // just assuming a match, would be cleaner to use a file hash though
-        $original_file = $DB->get_record('files', array('filepath' => $filepath, 'filename' => $filename, 'filearea' => 'private', 'userid' => $admin_user_id), '*', IGNORE_MULTIPLE);
-        // step 1: creating course files from private files (dit kan zeker beter wanneer archief in /tmp geünzipt is)
-        $filerecord = array();
-        $filerecord['filepath'] = '/'; // dit is voor de **nieuwe** file
-        $filerecord['filename'] = $filename; // dit is voor de **nieuwe** file
-        $filerecord['component'] = 'user';
-        $filerecord['filearea'] = 'draft';
-        $filerecord['itemid'] = file_get_unused_draft_itemid();
-        $filerecord['license'] = 'unknown';
-        $filerecord['author'] = 'script voor automatische aanmaak';
-        $filerecord['contextid'] = 5;
-        $filerecord['timecreated'] = 1660045452;
-        $filerecord['timemodified'] = 1660045452;
-        $filerecord['userid'] = $admin_user_id;
-        $filerecord['sortorder'] = 0;
-        $filerecord['source'] = null;
-        $storedfile = get_file_storage()->create_file_from_storedfile($filerecord, intval($original_file->id));
-        $attached_files = [];
-        array_push($attached_files, $storedfile->get_itemid());
-
-        // HIER WORDEN ATTACHMENTS TOEGEVOEGD
-        foreach ($assignment['attachments'] as $attachment) { // $attachment is a path
-            $attachment_path_components = explode('/', $attachment);
-            $attachment_without_filename = array_slice($attachment_path_components, 0, count($attachment_path_components) - 1);
-            $attachment_filepath = implode('/', $attachment_without_filename);
-            $attachment_filepath .= '/';
-            $attachment_filename = $attachment_path_components[count($attachment_path_components) - 1];
-            // just assuming a match, would be cleaner to use a file hash though
-            $attachment_original_file = $DB->get_record('files', array('filepath' => $attachment_filepath, 'filename' => $attachment_filename, 'filearea' => 'private', 'userid' => $admin_user_id), '*', IGNORE_MULTIPLE);
-
-            $attachment_filerecord = array();
-            $attachment_filerecord['filepath'] = '/'; // dit is voor de **nieuwe** file
-            $attachment_filerecord['filename'] = $attachment_filename; // dit is voor de **nieuwe** file
-            $attachment_filerecord['component'] = 'user';
-            $attachment_filerecord['filearea'] = 'draft';
-            $attachment_filerecord['itemid'] = file_get_unused_draft_itemid();
-            $attachment_filerecord['license'] = 'unknown';
-            $attachment_filerecord['author'] = 'script voor automatische aanmaak';
-            $attachment_filerecord['contextid'] = 5;
-            $attachment_filerecord['timecreated'] = 1660045452;
-            $attachment_filerecord['timemodified'] = 1660045452;
-            $attachment_filerecord['userid'] = $admin_user_id;
-            $attachment_filerecord['sortorder'] = 0;
-            $attachment_filerecord['source'] = null;
-            $attachment_storedfile = get_file_storage()->create_file_from_storedfile($attachment_filerecord, intval($attachment_original_file->id));
-            array_push($attached_files, $attachment_storedfile->get_itemid());
+    if (array_key_exists("assignments", $topic_section_consumed_metadata)) {
+        foreach ($topic_section_consumed_metadata["assignments"] as $assignment_counter_for_topic => $assignment) {
+            $description = $assignment['title'];
+            $assignment_folder_location = $topic_section_location . "/" . $assignment["id"];
+            // for now, just set this via $data->intro or something
+            $assignment_description_location = $assignment_folder_location . "/" . "contents.md";
+            $attached_files = [];
+            if (array_key_exists("attachments", $assignment)) {
+                foreach ($assignment['attachments'] as $attachment_filename) {
+                    $attachment_location = $assignment_folder_location . "/" . $attachment_filename;
+                    $attachment_filerecord = [
+                        'contextid' => $context->id,
+                        'component' => $FRANKENSTYLE_PLUGIN_NAME,
+                        'filearea'  => 'assignment_attachments',
+                        'itemid'    => $overall_assignment_counter,
+                        'filepath'  => $assignment_folder_location . "/",
+                        'filename'  => $attachment_filename,
+                    ];
+                    $attachment_storedfile = get_file_storage()->create_file_from_pathname($attachment_filerecord, $attachment_location);
+                    array_push($attached_files, $attachment_storedfile->get_itemid());
+                }
+            }
+            // step 2: making an assignment based on the file
+            list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
+            $data->name = "Opdracht $assignment_counter_for_topic $topic_title: $description";
+            $data->course = $course;
+            $data->intro = file_get_contents($assignment_description_location);
+            $data->introformat = 1;
+            $data->alwaysshowdescription = false;
+            $data->submissiondrafts = 0;
+            $data->sendnotifications = 0;
+            $data->sendlatenotifications = 0;
+            $data->sendstudentnotifications = 0;
+            $data->requiresubmissionstatement = 0;
+            $data->allowsubmissionsfromdate = 0;
+            $data->grade = 0;
+            $data->completionsubmit = 1;
+            $data->duedate = 0;
+            $data->markingworkflow = 0;
+            $data->markingallocation = 0;
+            $data->teamsubmission = 0;
+            $data->requireallteammemberssubmit = 0;
+            $data->gradingduedate = 0;
+            $data->cutoffdate = 0;
+            $data->hidegrader = 0;
+            $data->blindmarking = 0;
+            $data->teamsubmissiongroupingid = 0;
+            $data->maxattempts = -1; // unlimited
+            $data->attemptreopenmethod = 'untilpass';
+            $data->preventsubmissionnotingroup = 0;
+            $data->requiresubmissionstatement = 0;
+            $data->assignsubmission_file_enabled = "1";
+            $data->assignsubmission_comments_enabled = 1;
+            $data->assignsubmission_file_maxfiles = "1";
+            $data->assignsubmission_file_maxsizebytes = "5242880";
+            $data->assignsubmission_file_filetypes = ".zip";
+            $data->assignfeedback_comments_enabled = "1";
+            $data->assignfeedback_comments_commentinline = "0";
+            $data->submissiondrafts = "0";
+            $data->completionunlocked = 1;
+            $data->completion = "2";
+            $data->completionview = "1";
+            $data->completionexpected = 0;
+            $data->completiongradeitemnumber = NULL;
+            $data->introattachments = $attached_files;
+            if ($preceding_course_module_id_in_section >= 0) {
+                $availability = array(
+                    "op" => "&",
+                    "c" => [
+                        array(
+                            "type" => "completion",
+                            "cm" => "$preceding_course_module_id_in_section",
+                            "e" => 1
+                        )
+                    ],
+                    "showc" => [true]
+                );
+                $data->availability = json_encode($availability);
+            }
+            $result = add_moduleinfo($data, $course);
+            array_push($topic_section_produced_metadata[$key]['assignments'], $data->coursemodule);
+            $preceding_course_module_id_in_section = $data->coursemodule;
+            $overall_assignment_counter += 1;
         }
+    }
 
-        // step 2: making an assignment based on the file
-        list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $offset + $index);
-        $data->name = "Opdracht $assignment_counter_for_topic $title: $description";
-        $data->course = $course;
-        $data->intro = '';
-        $data->introformat = 1;
-        $data->alwaysshowdescription = false;
-        $data->submissiondrafts = 0;
-        $data->sendnotifications = 0;
-        $data->sendlatenotifications = 0;
-        $data->sendstudentnotifications = 0;
-        $data->requiresubmissionstatement = 0;
-        $data->allowsubmissionsfromdate = 0;
-        $data->grade = 0;
-        $data->completionsubmit = 1;
-        $data->duedate = 0;
-        $data->markingworkflow = 0;
-        $data->markingallocation = 0;
-        $data->teamsubmission = 0;
-        $data->requireallteammemberssubmit = 0;
-        $data->gradingduedate = 0;
-        $data->cutoffdate = 0;
-        $data->hidegrader = 0;
-        $data->blindmarking = 0;
-        $data->teamsubmissiongroupingid = 0;
-        $data->maxattempts = -1; // unlimited
-        $data->attemptreopenmethod = 'untilpass';
-        $data->preventsubmissionnotingroup = 0;
-        $data->requiresubmissionstatement = 0;
-        $data->assignsubmission_file_enabled = "1";
-        $data->assignsubmission_comments_enabled = 1;
-        $data->assignsubmission_file_maxfiles = "1";
-        $data->assignsubmission_file_maxsizebytes = "5242880";
-        $data->assignsubmission_file_filetypes = ".zip";
-        $data->assignfeedback_comments_enabled = "1";
-        $data->assignfeedback_comments_commentinline = "0";
-        $data->submissiondrafts = "0";
-        $data->completionunlocked = 1;
-        $data->completion = "2";
-        $data->completionview = "1";
-        $data->completionexpected = 0;
-        $data->completiongradeitemnumber = NULL;
-        $data->introattachments = $attached_files;
-        if ($preceding_course_module_id_in_section >= 0) {
-            $availability = array(
-                "op" => "&",
-                "c" => [
-                    array(
-                        "type" => "completion",
-                        "cm" => "$preceding_course_module_id_in_section",
-                        "e" => 1
-                    )
-                ],
-                "showc" => [true]
-            );
-            $data->availability = json_encode($availability);
-        }
-        $result = add_moduleinfo($data, $course);
-        array_push($course_section_data[$node['id']]['assignments'], $data->coursemodule);
-        $preceding_course_module_id_in_section = $data->coursemodule;
-    }*/
-    
     echo html_writer::start_tag('p') . "TODO: Still need to add page element (i.e. lesson contents) and potentially URLs." . html_writer::end_tag('p');
 
     // add final assignment for manual completion
@@ -241,6 +205,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
         $data->availability = json_encode($availability);
     }
     add_moduleinfo($data, $course);
+    $overall_assignment_counter += 1;
 
     $preceding_course_module_id_in_section = $data->coursemodule;
     $topic_section_produced_metadata[$key]['manual_completion_assignment_id'] = $data->coursemodule;
@@ -291,12 +256,11 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 }
                 $zip->extractTo($location);
                 $zip->close();
-
                 // create a section for the course "map"
                 $record = new stdClass;
                 $record->course = intval($course->id);
                 $record->section = $next_created_section_number;
-                $next_created_section_number += 1; 
+                $next_created_section_number += 1;
                 $record->name = "overview";
                 $record->summary = file_get_contents($location . "/course_structure.svg");
                 $record->summaryformat = 1;
@@ -306,7 +270,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 $absolute_svg_path = $location . "/course_structure.svg";
                 $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
                 $unlocking_conditions = json_decode($unlocking_contents, true);
-                // intended keys: moodle_section_id, manual_completion_assignment_id
+                // intended keys: moodle_section_id, manual_completion_assignment_id, assignments
                 $topic_section_produced_metadata = array();
                 foreach ($unlocking_conditions as $key => $value) {
                     $id_components = explode("__", $key);
@@ -316,7 +280,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
                     $raw_cluster_data = file_get_contents($cluster_folder . "/contents.lc.json");
                     $cluster_metadata = json_decode($raw_cluster_data, true);
                     $topic_section_consumed_metadata = null;
-                    foreach($cluster_metadata["nodes"] as $node_metadata) {
+                    foreach ($cluster_metadata["nodes"] as $node_metadata) {
                         if ($node_metadata["id"] === $unnamespaced_id) {
                             $topic_section_consumed_metadata = $node_metadata;
                         }
@@ -368,12 +332,14 @@ switch ($_SERVER['REQUEST_METHOD']) {
                             // the activity cannot be accessed
                             $availability = array(
                                 "op" => "|",
-                                "c" => [array(
-                                    "type" => "profile",
-                                    "sf" => "firstname",
-                                    "op" => "isequalto",
-                                    "v" => "dummy_first_name_to_simulate_false"
-                                )],
+                                "c" => [
+                                    array(
+                                        "type" => "profile",
+                                        "sf" => "firstname",
+                                        "op" => "isequalto",
+                                        "v" => "dummy_first_name_to_simulate_false"
+                                    )
+                                ],
                                 "show" => false
                             );
                         }
