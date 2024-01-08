@@ -26,7 +26,7 @@ require_once($CFG->libdir . '/filelib.php');
 require_login();
 $FRANKENSTYLE_PLUGIN_NAME = 'local_distance';
 
-$context = context_system::instance();
+$context = context_system::instance(); // TODO: this doesn't seem to do anything, though...
 $PAGE->set_context($context);
 $PAGE->set_url(new moodle_url('/local/distance/index.php'));
 $PAGE->set_pagelayout('standard'); // Zodat we blocks hebben.
@@ -59,18 +59,22 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
     $record->summaryformat = 1;
     $record->sequence = "";
     $record->visible = 1;
-    $topic_section_produced_metadata[$key] = array();
+    $topic_section_produced_metadata[$key] = [
+        "assignments" => []
+    ];
     $topic_section_produced_metadata[$key]['moodle_section_id'] = $DB->insert_record('course_sections', $record);
+    list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
     if (array_key_exists("assignments", $topic_section_consumed_metadata)) {
         foreach ($topic_section_consumed_metadata["assignments"] as $assignment_counter_for_topic => $assignment) {
             $description = $assignment['title'];
             $assignment_folder_location = $topic_section_location . "/" . $assignment["id"];
             // for now, just set this via $data->intro or something
-            $assignment_description_location = $assignment_folder_location . "/" . "contents.md";
-            $attached_files = [];
+            $assignment_description_location = $assignment_folder_location . "/contents.md";
             if (array_key_exists("attachments", $assignment)) {
+                $attached_files = [];
                 foreach ($assignment['attachments'] as $attachment_filename) {
                     $attachment_location = $assignment_folder_location . "/" . $attachment_filename;
+                    // TODO: come up with a new, unique and overwrite pre-existing file
                     $attachment_filerecord = [
                         'contextid' => $context->id,
                         'component' => $FRANKENSTYLE_PLUGIN_NAME,
@@ -84,11 +88,14 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
                 }
             }
             // step 2: making an assignment based on the file
-            list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
-            $data->name = "Opdracht $assignment_counter_for_topic $topic_title: $description";
+            $human_counter = $assignment_counter_for_topic + 1;
+            $data->name = "Opdracht $human_counter $topic_title: $description";
             $data->course = $course;
-            $data->intro = file_get_contents($assignment_description_location);
-            $data->introformat = 1;
+            var_dump($assignment_description_location);
+            $intro = file_get_contents($assignment_description_location);
+            var_dump($intro);
+            $data->intro = text_to_html($intro, false, false, true);
+            $data->introformat = FORMAT_HTML;
             $data->alwaysshowdescription = false;
             $data->submissiondrafts = 0;
             $data->sendnotifications = 0;
