@@ -101,7 +101,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
                         'author' => 'script',
                         'timecreated' => 1660045452, // kan wrs weg
                         'timemodified' => 1660045452, // idem
-                        'userid' => 2, // weg?
+                        // 'userid' => 2, // weg?
                         'sortorder' => 0,
                         'source' => null
                     ];
