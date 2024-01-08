@@ -74,7 +74,6 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
                 $attached_files = [];
                 foreach ($assignment['attachments'] as $attachment_filename) {
                     $attachment_location = $assignment_folder_location . "/" . $attachment_filename;
-                    // TODO: come up with a new, unique and overwrite pre-existing file
                     $attachment_filerecord = [
                         'contextid' => $context->id,
                         'component' => $FRANKENSTYLE_PLUGIN_NAME,
@@ -83,24 +82,18 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
                         'filepath'  => $assignment_folder_location . "/",
                         'filename'  => $attachment_filename,
                     ];
+                    // if the file already exists, delete it from the database, because create_... does not overwrite
+                    $DB->delete_records('files', ["filepath" => $assignment_folder_location . "/", "filename" => $attachment_filename]);
                     $attachment_storedfile = get_file_storage()->create_file_from_pathname($attachment_filerecord, $attachment_location);
                     array_push($attached_files, $attachment_storedfile->get_itemid());
                 }
             }
-            // step 2: making an assignment based on the file
             $human_counter = $assignment_counter_for_topic + 1;
             $data->name = "Opdracht $human_counter $topic_title: $description";
             $data->course = $course;
+            // NOTE: setting $data->intro here does not work
+            // field is ignored at creation for some reason, updating it does work
             $intro = file_get_contents($assignment_description_location);
-            $data->intro = "<p dir=\"ltr\" style=\"text-align: left;\">lukt het zo wel?<br></p>";//text_to_html($intro, false, false, true);
-            // TODO FIXME: misschien te maken met add_moduleinfo?
-            // zie locallib.php: daar komt toekenning via ->intro wel voor
-            // ergens anders niet
-            // spitballing: add_moduleinfo mist deze velden?
-            $data->description = [
-                "text" => "misschien zo?",
-                "format"=> FORMAT_HTML,
-            ];
             $data->introformat = FORMAT_HTML;
             $data->alwaysshowdescription = false;
             $data->submissiondrafts = 0;
@@ -154,11 +147,10 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
                 $data->availability = json_encode($availability);
             }
             $result = add_moduleinfo($data, $course);
-            var_dump($result);
             // update seems to be needed because add_moduleinfo does not handle the intro field
+            // feels like this may have been fixed in more recent Moodle versions...?
             $data->id = $result->instance;
             $existing_assignment = $DB->get_record('assign', ['id'=> $result->instance]);
-            var_dump($existing_assignment);
             $existing_assignment->intro = $intro;
             $result = $DB->update_record('assign', $existing_assignment);
             array_push($topic_section_produced_metadata[$key]['assignments'], $data->coursemodule);
@@ -265,11 +257,6 @@ switch ($_SERVER['REQUEST_METHOD']) {
 
         echo html_writer::start_tag('input', array('type' => 'submit', 'value' => 'Recreate course'));
         echo html_writer::end_tag('form');
-
-        // for testing only!
-        $existing_assignment = $DB->get_record('assign', ['id' => 9303]);
-        $existing_assignment->intro = "PLEASE WORK!";
-        $DB->update_record('assign', $existing_assignment);
         break;
 
         
