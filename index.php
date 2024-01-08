@@ -35,7 +35,6 @@ $PAGE->set_heading(get_string('pluginname', 'local_distance'));
 
 // first section to be created will just be number 1
 $next_created_section_number = 1;
-$overall_assignment_counter = 0;
 
 function create_course_topic($DB, $course, $key, $topic_section_produced_metadata, $topic_section_consumed_metadata, $topic_section_location)
 {
@@ -44,7 +43,6 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
 
     global $next_created_section_number;
     global $FRANKENSTYLE_PLUGIN_NAME;
-    global $overall_assignment_counter;
 
     $preceding_course_module_id_in_section = -1; // first course module will be numbered 0
     $section_number = $next_created_section_number;
@@ -64,16 +62,6 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
     ];
     $topic_section_produced_metadata[$key]['moodle_section_id'] = $DB->insert_record('course_sections', $record);
     list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
-    echo "module:";
-    var_dump($module);
-    echo "context";
-    var_dump($context);
-    echo "cw";
-    var_dump($cw);
-    echo "cmrec";
-    var_dump($cmrec);
-    echo "data";
-    var_dump($data);
     if (array_key_exists("assignments", $topic_section_consumed_metadata)) {
         foreach ($topic_section_consumed_metadata["assignments"] as $assignment_counter_for_topic => $assignment) {
             $description = $assignment['title'];
@@ -85,30 +73,18 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
                 foreach ($assignment['attachments'] as $attachment_filename) {
                     $attachment_location = $assignment_folder_location . "/" . $attachment_filename;
                     $attachment_filerecord = [
-                        // TODO !!!
-                        // misschien zijn de aanpassingen niet allemaal wat ze eerst lijken
-                        // want mod_assign was in de oude versie nergens aanwezig...
-                        'contextid' => $course->id, // twijfel, maar leek te werken in oude versie
-                        // lastig! log van $module, $context, $cw,... toont *nergens* het ID dat ik in de DB moet invullen (alles gelogd, ctrl-f op dat ID gedaan...)
-                        //'component' => $FRANKENSTYLE_PLUGIN_NAME, // has to match in order for file to show up in listing
                         'filearea'  => "draft", // same as for manually created ones...
                         'itemid'    => file_get_unused_draft_itemid(),
-                        'filepath'  => "/", // beïnvloedt weergave attachment als in mapjes
+                        'filepath'  => "/", // affects how the attachment is displayed (in folder structure or flat)
                         'filename'  => $attachment_filename,
                         // here goes nothing
                         'component' => "user",
                         'license' => 'unknown',
                         'author' => 'script',
-                        'timecreated' => 1660045452, // kan wrs weg
-                        'timemodified' => 1660045452, // idem
-                        // 'userid' => 2, // weg?
                         'sortorder' => 0,
                         'source' => null
                     ];
-                    // TODO: ik denk dat dit te veel gaat wissen
-                    // $DB->delete_records('files', ["filepath" => "/", "filename" => $attachment_filename]);
                     $attachment_storedfile = get_file_storage()->create_file_from_pathname($attachment_filerecord, $attachment_location);
-                    // get_file_storage()->create_file_from_storedfile($attachment_filerecord, intval($attachment_original_file->id));
                     array_push($attached_files, $attachment_storedfile->get_itemid());
                 }
             }
@@ -156,11 +132,6 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
             $data->completionexpected = 0;
             $data->completiongradeitemnumber = NULL;
             $data->introattachments = $attached_files;
-            if (count($attached_files) > 0) {
-                // okay, this shows that the attachments all have itemID 0
-                echo "Attached files info:";
-                var_dump($attached_files);
-            }
             if ($preceding_course_module_id_in_section >= 0) {
                 $availability = array(
                     "op" => "&",
@@ -181,11 +152,9 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
             $data->id = $result->instance;
             $existing_assignment = $DB->get_record('assign', ['id'=> $result->instance]);
             $existing_assignment->intro = $intro;
-            // $existing_assignment->introattachments = $attached_files; // who knows, maybe this'll do it
             $result = $DB->update_record('assign', $existing_assignment);
             array_push($topic_section_produced_metadata[$key]['assignments'], $data->coursemodule);
             $preceding_course_module_id_in_section = $data->coursemodule;
-            $overall_assignment_counter += 1;
         }
     }
 
@@ -251,8 +220,6 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
         $data->availability = json_encode($availability);
     }
     add_moduleinfo($data, $course);
-    $overall_assignment_counter += 1;
-
     $preceding_course_module_id_in_section = $data->coursemodule;
     $topic_section_produced_metadata[$key]['manual_completion_assignment_id'] = $data->coursemodule;
     return $topic_section_produced_metadata;
