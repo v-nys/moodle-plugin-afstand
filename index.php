@@ -106,7 +106,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
                         'source' => null
                     ];
                     // TODO: ik denk dat dit te veel gaat wissen
-                    $DB->delete_records('files', ["filepath" => "/", "filename" => $attachment_filename]);
+                    // $DB->delete_records('files', ["filepath" => "/", "filename" => $attachment_filename]);
                     $attachment_storedfile = get_file_storage()->create_file_from_pathname($attachment_filerecord, $attachment_location);
                     // get_file_storage()->create_file_from_storedfile($attachment_filerecord, intval($attachment_original_file->id));
                     array_push($attached_files, $attachment_storedfile->get_itemid());
