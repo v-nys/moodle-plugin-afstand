@@ -64,6 +64,16 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
     ];
     $topic_section_produced_metadata[$key]['moodle_section_id'] = $DB->insert_record('course_sections', $record);
     list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
+    echo "module:";
+    var_dump($module);
+    echo "context";
+    var_dump($context);
+    echo "cw";
+    var_dump($cw);
+    echo "cmrec";
+    var_dump($cmrec);
+    echo "data";
+    var_dump($data);
     if (array_key_exists("assignments", $topic_section_consumed_metadata)) {
         foreach ($topic_section_consumed_metadata["assignments"] as $assignment_counter_for_topic => $assignment) {
             $description = $assignment['title'];
@@ -75,14 +85,30 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
                 foreach ($assignment['attachments'] as $attachment_filename) {
                     $attachment_location = $assignment_folder_location . "/" . $attachment_filename;
                     $attachment_filerecord = [
-                        'contextid' => $context->id,
-                        'component' => $FRANKENSTYLE_PLUGIN_NAME,
-                        'filearea'  => 'assignment_attachments',
-                        'itemid'    => $overall_assignment_counter,
-                        'filepath'  => $assignment_folder_location . "/",
+                        // TODO !!!
+                        // misschien zijn de aanpassingen niet allemaal wat ze eerst lijken
+                        // want mod_assign was in de oude versie nergens aanwezig...
+                        'contextid' => $context->id, // TODO: dit is alvast verkeerd! file verschijnt in listing als ik dit in DB aanpas...
+                        // lastig! log van $module, $context, $cw,... toont *nergens* het ID dat ik in de DB moet invullen (alles gelogd, ctrl-f op dat ID gedaan...)
+                        'component' => "mod_assign", // has to match in order for file to show up in listing
+                        'filearea'  => 'introattachment', // same as for manually created ones...
+                        'itemid'    => 0, // manually created attachments seem to just have 0, so...
+                        'filepath'  => "/", // beïnvloedt weergave attachment als in mapjes
                         'filename'  => $attachment_filename,
                     ];
                     // if the file already exists, delete it from the database, because create_... does not overwrite
+                    // als er attachments getoond moeten worden, runt deze code om te renderen:
+                    // $postfix = $this->render_area_files('mod_assign', ASSIGN_INTROATTACHMENT_FILEAREA, 0);
+                    // dat geeft dan weer
+                    // $this->get_renderer()->assign_files($this->context, $submissionid, $area, $component)
+                    // die functie staat in renderer.php
+                    // daar staat dan weer
+                    // return $this->render(new assign_files($context, $userid, $filearea, $component))
+                    // merk op: new
+                    // dus we maken een instantie met deze waarden
+                    // valt op dat component hier aanwezig is, kan meespelen...
+                    // zie de klasse assign_files, lijkt alsof de constructor aangeeft hoe files getoond zullen worden
+                    // het gevoel dat ik hier heb, is dat het context ID eigenlijk niet klopt
                     $DB->delete_records('files', ["filepath" => $assignment_folder_location . "/", "filename" => $attachment_filename]);
                     $attachment_storedfile = get_file_storage()->create_file_from_pathname($attachment_filerecord, $attachment_location);
                     array_push($attached_files, $attachment_storedfile->get_itemid());
@@ -132,6 +158,11 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
             $data->completionexpected = 0;
             $data->completiongradeitemnumber = NULL;
             $data->introattachments = $attached_files;
+            if (count($attached_files) > 0) {
+                // okay, this shows that the attachments all have itemID 0
+                echo "Attached files info:";
+                var_dump($attached_files);
+            }
             if ($preceding_course_module_id_in_section >= 0) {
                 $availability = array(
                     "op" => "&",
@@ -152,7 +183,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
             $data->id = $result->instance;
             $existing_assignment = $DB->get_record('assign', ['id'=> $result->instance]);
             $existing_assignment->intro = $intro;
-            $existing_assignment->introattachments = $attached_files; // who knows, maybe this'll do it
+            // $existing_assignment->introattachments = $attached_files; // who knows, maybe this'll do it
             $result = $DB->update_record('assign', $existing_assignment);
             array_push($topic_section_produced_metadata[$key]['assignments'], $data->coursemodule);
             $preceding_course_module_id_in_section = $data->coursemodule;
