@@ -152,6 +152,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
             $data->id = $result->instance;
             $existing_assignment = $DB->get_record('assign', ['id'=> $result->instance]);
             $existing_assignment->intro = $intro;
+            $existing_assignment->introattachments = $attached_files; // who knows, maybe this'll do it
             $result = $DB->update_record('assign', $existing_assignment);
             array_push($topic_section_produced_metadata[$key]['assignments'], $data->coursemodule);
             $preceding_course_module_id_in_section = $data->coursemodule;
