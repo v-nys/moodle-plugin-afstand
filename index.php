@@ -267,7 +267,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
         $course = $DB->get_record('course', ['id' => intval($_POST['course'])]);
         $DB->delete_records('course_modules', array('course' => $course->id));
         $DB->delete_records('course_sections', array('course' => $course->id));
-        if ($_FILES['archive']['type'] === "application/zip") {
+        if ($_FILES['archive']['type'] === "application/zip" || $_FILES['archive']['type'] === "application/x-zip-compressed") {
             $zip = new ZipArchive;
             $open_res = $zip->open($_FILES['archive']['tmp_name']);
             if ($open_res === TRUE) {
