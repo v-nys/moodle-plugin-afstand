@@ -61,7 +61,8 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
         "assignments" => []
     ];
     $topic_section_produced_metadata[$key]['moodle_section_id'] = $DB->insert_record('course_sections', $record);
-    list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
+    list($module, $moduleinfo_context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
+    echo html_writer::start_tag('p') . "Beginning assignment creation." . html_writer::end_tag('p');
     if (array_key_exists("assignments", $topic_section_consumed_metadata)) {
         foreach ($topic_section_consumed_metadata["assignments"] as $assignment_counter_for_topic => $assignment) {
             $description = $assignment['title'];
@@ -71,13 +72,15 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
             if (array_key_exists("attachments", $assignment)) {
                 $attached_files = [];
                 foreach ($assignment['attachments'] as $attachment_filename) {
+                    echo html_writer::start_tag('p') . "Adding attachment $attachment_filename." . html_writer::end_tag('p');
                     $attachment_location = $assignment_folder_location . "/" . $attachment_filename;
+                    // FIXME: missing contextid?
                     $attachment_filerecord = [
                         'filearea'  => "draft", // same as for manually created ones...
                         'itemid'    => file_get_unused_draft_itemid(),
                         'filepath'  => "/", // affects how the attachment is displayed (in folder structure or flat)
                         'filename'  => $attachment_filename,
-                        // here goes nothing
+                        'contextid' => $moduleinfo_context->id,
                         'component' => "user",
                         'license' => 'unknown',
                         'author' => 'script',
@@ -85,6 +88,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
                         'source' => null
                     ];
                     $attachment_storedfile = get_file_storage()->create_file_from_pathname($attachment_filerecord, $attachment_location);
+                    echo html_writer::start_tag('p') . "Stored attachment $attachment_filename." . html_writer::end_tag('p');
                     array_push($attached_files, $attachment_storedfile->get_itemid());
                 }
             }
@@ -146,6 +150,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
                 );
                 $data->availability = json_encode($availability);
             }
+            echo html_writer::start_tag('p') . "Adding moduleinfo for $topic_title." . html_writer::end_tag('p');
             $result = add_moduleinfo($data, $course);
             // update seems to be needed because add_moduleinfo does not handle the intro field
             // feels like this may have been fixed in more recent Moodle versions...?
