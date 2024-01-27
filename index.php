@@ -290,6 +290,17 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 $maps_section_id = $DB->insert_record('course_sections', $record);
                 $absolute_svg_path = $location . "/course_structure.svg";
                 $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
+                $directory_contents = scandir($location);
+                $DB->delete_records("clusters", array("courseid" => $record->course));
+                foreach ($directory_contents as $file) {
+                    if (is_dir($location . ".". $file)) {
+                        $cluster_record = new StdClass;
+                        $cluster_record->name=$file;
+                        $cluster_record->courseid=$record->course;
+                        $cluster_record->$yaml_representation= file_get_contents($location . "/" . $file . "/contents.lc.yaml");
+                        $DB->insert_record("clusters",$cluster_record);
+                    }
+                }
                 $unlocking_conditions = json_decode($unlocking_contents, true);
                 // intended keys: moodle_section_id, manual_completion_assignment_id, assignments
                 $topic_section_produced_metadata = array();
