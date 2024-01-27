@@ -290,14 +290,14 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 $maps_section_id = $DB->insert_record('course_sections', $record);
                 $absolute_svg_path = $location . "/course_structure.svg";
                 $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
-                $directory_contents = scandir($location);
+                $directory_contents = array_diff(scandir($location), array('..', '.'));
                 $DB->delete_records("clusters", array("courseid" => $record->course));
                 foreach ($directory_contents as $file) {
-                    if (is_dir($location . ".". $file)) {
+                    if (is_dir($location . "/". $file)) {
                         $cluster_record = new StdClass;
                         $cluster_record->name=$file;
                         $cluster_record->courseid=$record->course;
-                        $cluster_record->$yaml_representation= file_get_contents($location . "/" . $file . "/contents.lc.yaml");
+                        $cluster_record->yaml=file_get_contents($location . "/" . $file . "/contents.lc.yaml");
                         $DB->insert_record("clusters",$cluster_record);
                     }
                 }

@@ -8,7 +8,7 @@
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
         <FIELD NAME="courseid" TYPE="int" LENGTH="20" NOTNULL="true" SEQUENCE="false"/>
-        <FIELD NAME="yaml_representation" TYPE="text" NOTNULL="true" SEQUENCE="false" COMMENT="YAML representation of the cluster's structure"/>
+        <FIELD NAME="yaml" TYPE="text" NOTNULL="true" SEQUENCE="false" COMMENT="YAML representation of the cluster's structure"/>
         <FIELD NAME="name" TYPE="text" NOTNULL="true" SEQUENCE="false"/>
       </FIELDS>
       <KEYS>
