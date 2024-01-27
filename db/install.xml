@@ -4,14 +4,6 @@
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
   <TABLES>
-    <TABLE NAME="local_distance" COMMENT="Default comment for local_distance, please edit me">
-      <FIELDS>
-        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
-      </FIELDS>
-      <KEYS>
-        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-      </KEYS>
-    </TABLE>
     <TABLE NAME="clusters" COMMENT="Clusters of learning material">
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
@@ -23,9 +15,6 @@
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
         <KEY NAME="courseid" TYPE="foreign" FIELDS="courseid" REFTABLE="mdl_course" REFFIELDS="id"/>
       </KEYS>
-      <INDEXES>
-        <INDEX NAME="idx_name_courseid" UNIQUE="true" FIELDS="name, courseid"/>
-      </INDEXES>
     </TABLE>
   </TABLES>
 </XMLDB>
