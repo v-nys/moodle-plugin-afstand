@@ -238,7 +238,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
         $courses = $DB->get_records('course', []);
         echo html_writer::start_tag('div');
         echo html_writer::start_tag('label', array('for' => 'course-select-dropdown'));
-        echo "Import into course:";
+        echo "Import into existing course:";
         echo html_writer::end_tag('label');
         echo html_writer::start_tag('select', array('id' => 'course-select-dropdown', 'name' => 'course'));
         foreach ($courses as $course) {
