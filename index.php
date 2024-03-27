@@ -325,7 +325,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
                     $node_record->slug = $unnamespaced_id;
                     $node_record->course_sections_id = $topic_section_produced_metadata[$key]['moodle_section_id'];
                     $node_record->clusters_id = $cluster_ids[$cluster_name];
-                    $node_record->completion_assignment_id = $topic_section_produced_metadata[$key]['manual_completion_assignment_id'];
+                    $node_record->manual_completion_assignment_id = $topic_section_produced_metadata[$key]['manual_completion_assignment_id'];
                     $DB->insert_record("nodes", $node_record);
                 }
                 $namespaced_id_to_completion_id = function ($namespaced_id) use ($topic_section_produced_metadata) {
