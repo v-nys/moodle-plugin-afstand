@@ -155,7 +155,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
             // update seems to be needed because add_moduleinfo does not handle the intro field
             // feels like this may have been fixed in more recent Moodle versions...?
             $data->id = $result->instance;
-            $existing_assignment = $DB->get_record('assign', ['id'=> $result->instance]);
+            $existing_assignment = $DB->get_record('assign', ['id' => $result->instance]);
             $existing_assignment->intro = $intro;
             $result = $DB->update_record('assign', $existing_assignment);
             array_push($topic_section_produced_metadata[$key]['assignments'], $data->coursemodule);
@@ -261,7 +261,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
         echo html_writer::end_tag('form');
         break;
 
-        
+
 
     case 'POST':
         $course = $DB->get_record('course', ['id' => intval($_POST['course'])]);
@@ -292,13 +292,14 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
                 $directory_contents = array_diff(scandir($location), array('..', '.'));
                 $DB->delete_records("clusters", array("courseid" => $record->course));
+                $cluster_ids = array();
                 foreach ($directory_contents as $file) {
-                    if (is_dir($location . "/". $file)) {
+                    if (is_dir($location . "/" . $file)) {
                         $cluster_record = new StdClass;
-                        $cluster_record->name=$file;
-                        $cluster_record->courseid=$record->course;
-                        $cluster_record->yaml=file_get_contents($location . "/" . $file . "/contents.lc.yaml");
-                        $DB->insert_record("clusters",$cluster_record);
+                        $cluster_record->name = $file;
+                        $cluster_record->courseid = $record->course;
+                        $cluster_record->yaml = file_get_contents($location . "/" . $file . "/contents.lc.yaml");
+                        $cluster_ids[$file] = $DB->insert_record("clusters", $cluster_record);
                     }
                 }
                 $unlocking_conditions = json_decode($unlocking_contents, true);
@@ -319,6 +320,12 @@ switch ($_SERVER['REQUEST_METHOD']) {
                     }
                     // TODO: do I really need to mutate *and* return?
                     $topic_section_produced_metadata = create_course_topic($DB, $course, $key, $topic_section_produced_metadata, $topic_section_consumed_metadata, $cluster_folder . "/" . $unnamespaced_id);
+
+                    $node_record = new StdClass;
+                    $node_record->slug = $unnamespaced_id;
+                    $node_record->course_sections_id = $topic_section_produced_metadata[$key]['moodle_section_id'];
+                    $node_record->clusters_id = $cluster_ids[$cluster_name];
+                    $DB->insert_record("nodes", $node_record);
                 }
                 $namespaced_id_to_completion_id = function ($namespaced_id) use ($topic_section_produced_metadata) {
                     return $topic_section_produced_metadata[$namespaced_id]['manual_completion_assignment_id'];
