@@ -233,6 +233,9 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
 echo $OUTPUT->header();
 switch ($_SERVER['REQUEST_METHOD']) {
     case 'GET':
+        // may want to add a warning before course is overwritten
+        // but just adding an onsubmit here does not seem to work
+        // a stubbed confirm shows up, but choosing 'cancel' does not cancel submission
         echo html_writer::start_tag('form', array('enctype' => 'multipart/form-data', 'action' => '#', 'method' => 'POST'));
 
         $courses = $DB->get_records('course', []);
