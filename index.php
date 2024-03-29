@@ -311,7 +311,16 @@ switch ($_SERVER['REQUEST_METHOD']) {
                     $absolute_svg_path = $location . "/course_structure.svg";
                     $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
                     $directory_contents = array_diff(scandir($location), array('..', '.'));
+                    // how do I make this get just the cluster IDs?
+                    $sql = "SELECT id FROM {clusters} WHERE courseid = ?";
+                    $deleted_clusters = $DB->get_records_sql($sql, [$record->course]);
+                    var_dump($deleted_clusters);
+                    // TODO: first delete nodes belonging to cluster
+                    // have: id, slug, clusters_id, course_sections_id, manual_completion_assignment
+                    // should delete any node which belongs to a deleted cluster...
+                    // can use array_map to get just the IDs, but how do I get an SQL `IN`?
                     $DB->delete_records("clusters", array("courseid" => $record->course));
+                    
                     $cluster_ids = array();
                     foreach ($directory_contents as $file) {
                         if (is_dir($location . "/" . $file)) {
