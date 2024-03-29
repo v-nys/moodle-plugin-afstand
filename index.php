@@ -421,59 +421,71 @@ switch ($_SERVER['REQUEST_METHOD']) {
             echo html_writer::start_tag('p') . "Course recreation is complete." . html_writer::end_tag('p');
             break;
         } else if ($mode === 'update') {
-            /*
-            Wanted to translate something like this (which works):
-            SELECT mdl_clusters.name, mdl_nodes.slug, mdl_nodes.course_sections_id
-            FROM mdl_clusters INNER JOIN mdl_nodes
-            ON mdl_nodes.clusters_id = mdl_clusters.id
-            WHERE mdl_clusters.courseid = 2; 
 
-            to something like:
-            $sql = "SELECT {clusters}.name, {nodes}.slug, {nodes}.course_sections_id FROM {clusters} INNER JOIN {nodes} ON {nodes}.clusters_id = {clusters}.id WHERE {clusters}.courseid = ?";
-            $id_mapping = $DB->get_records_sql($sql, [intval($_POST['course'])]);
+            if ($_FILES['archive']['type'] === "application/zip" || $_FILES['archive']['type'] === "application/x-zip-compressed") {
+                $zip = new ZipArchive;
+                $open_res = $zip->open($_FILES['archive']['tmp_name']);
+                if ($open_res === TRUE) {
+                    $location = '/tmp/' . basename($_FILES['archive']['name']);
+                    if (substr($location, -4) === ".zip") {
+                        $location = substr($location, 0, strlen($location) - 4);
+                    }
+                    $zip->extractTo($location);
+                    $zip->close();
+                    // create a section for the course "map"
+                    /*
+                    Wanted to translate something like this (which works):
+                    SELECT mdl_clusters.name, mdl_nodes.slug, mdl_nodes.course_sections_id
+                    FROM mdl_clusters INNER JOIN mdl_nodes
+                    ON mdl_nodes.clusters_id = mdl_clusters.id
+                    WHERE mdl_clusters.courseid = 2; 
 
-            But can't really make sense of the output.
-            So I'll do the "JOIN" manually.
-            */
-            $course_clusters = $DB->get_records('clusters', array('courseid' => intval($_POST['course'])));
-            $id_mapping = array();
-            foreach ($course_clusters as $cluster) {
-                $cluster_nodes = $DB->get_records('nodes', array('clusters_id' => $cluster->id));
-                foreach ($cluster_nodes as $node) {
-                    array_push($id_mapping, array(
-                        'cluster_id' => $cluster->id,
-                        'cluster_name' => $cluster->name,
-                        'node_slug' => $node->slug,
-                        'course_section_id' => $node->course_sections_id
-                    ));
+                    to something like:
+                    $sql = "SELECT {clusters}.name, {nodes}.slug, {nodes}.course_sections_id FROM {clusters} INNER JOIN {nodes} ON {nodes}.clusters_id = {clusters}.id WHERE {clusters}.courseid = ?";
+                    $id_mapping = $DB->get_records_sql($sql, [intval($_POST['course'])]);
+
+                    But can't really make sense of the output.
+                    So I'll do the "JOIN" manually.
+                    */
+                    $existing_course_clusters = $DB->get_records('clusters', array('courseid' => intval($_POST['course'])));
+                    $existing_nodes = array();
+                    foreach ($existing_course_clusters as $cluster) {
+                        $cluster_nodes = $DB->get_records('nodes', array('clusters_id' => $cluster->id));
+                        foreach ($cluster_nodes as $node) {
+                            array_push($existing_nodes, array(
+                                'cluster_id' => $cluster->id,
+                                'cluster_name' => $cluster->name,
+                                'node_slug' => $node->slug,
+                                'node_id' => $node->id,
+                                'course_section_id' => $node->course_sections_id
+                            ));
+                        }
+                    }
+                    $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
+                    $unlocking_conditions = json_decode($unlocking_contents, true);
+                    $removed_nodes = array_filter($existing_nodes, function ($node, $idx) use ($unlocking_conditions) {
+                        return !in_array($node['cluster_name'] . '__' . $node['node_slug'], array_keys($unlocking_conditions));
+                    }, ARRAY_FILTER_USE_BOTH);
+                    echo html_writer::start_tag('p') . "The following nodes and their course sections should be removed:" . html_writer::end_tag('p');
+                    var_dump($removed_nodes);
+                    // TODO: remove mdl_course_sections entry
+                    // TODO: remove mdl_nodes entry
+                    // next, clusters need to be updated (some (from $existing_course_clusters) could be removed, some could be added)
+                    // bear in mind that the DB contains their YAML representation, so even old clusters should be updated
+                    // basically, use an upsert
+                    //
+                    // then, new nodes and new sections need to be created, with manual completion assignments, for new cluster+slug combinations
+                    //
+                    // finally, availability should be recomputed for every section
+                    //
+                    // NOTE: this will look very similar to the code for 1st time course creation
+                    // start by copying and making changes
+                } else {
+                    echo html_writer::start_tag('p') . "Failed to open zip archive." . html_writer::end_tag('p');
                 }
+            } else {
+                echo html_writer::start_tag('p') . "File is not recognized as a zip archive." . html_writer::end_tag('p');
             }
-            $existing_course_nodes = $DB->get_records_list(
-                'nodes',
-                'clusters_id',
-                array_map(function ($cc) {
-                    return $cc->id;
-                }, $course_clusters)
-            );
-            $removed_course_nodes = array_filter($existing_course_nodes, function ($course_node) use ($id_mapping) {
-                $occurs = !empty(array_filter($id_mapping, function ($mapping_entry) use ($course_node) {
-                    return $mapping_entry['cluster_id'] === $course_node->clusters_id and $mapping_entry['node_slug'] === $course_node->slug;
-                }));
-                return !$occurs;
-            });
-            echo("The following nodes and their course_sections should be removed: ");
-            var_dump($removed_course_nodes);
-            //
-            // next, clusters need to be updated (some could be deleted)
-            // bear in mind that the DB contains their YAML representation, so even old clusters should be updated
-            // basically, use an upsert
-            //
-            // then, new nodes and new sections need to be created, with manual completion assignments, for new cluster+slug combinations
-            //
-            // finally, availability should be recomputed for every section
-            //
-            // NOTE: this will look very similar to the code for 1st time course creation
-            // start by copying and making changes
         } else {
             echo html_writer::start_tag('p') . "Unknown usage mode." . html_writer::end_tag('p');
         }
