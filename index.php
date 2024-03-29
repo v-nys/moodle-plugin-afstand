@@ -313,8 +313,6 @@ switch ($_SERVER['REQUEST_METHOD']) {
                     $directory_contents = array_diff(scandir($location), array('..', '.'));
                     $sql = "SELECT id FROM {clusters} WHERE courseid = ?";
                     $deleted_clusters = $DB->get_records_sql($sql, [$record->course]);
-                    echo("Deleted clusters:");
-                    var_dump($deleted_clusters);
                     foreach ($deleted_clusters as $deleted_cluster) {
                         $DB->delete_records("nodes", array("clusters_id" => $deleted_cluster->id));
                     }
@@ -423,7 +421,28 @@ switch ($_SERVER['REQUEST_METHOD']) {
             echo html_writer::start_tag('p') . "Course recreation is complete." . html_writer::end_tag('p');
             break;
         } else if ($mode === 'update') {
-            echo html_writer::start_tag('p') . "Update functionality is not available yet." . html_writer::end_tag('p');
+            echo ("fetching mapping");
+            /*
+            SELECT mdl_clusters.name, mdl_nodes.slug, mdl_nodes.course_sections_id
+            FROM mdl_clusters INNER JOIN mdl_nodes
+            ON mdl_nodes.clusters_id = mdl_clusters.id
+            WHERE mdl_clusters.courseid = 2; 
+            */
+            $sql = "SELECT {clusters}.name, {nodes}.slug, {nodes}.course_sections_id FROM {clusters} INNER JOIN {nodes} ON {nodes}.clusters_id = {clusters}.id WHERE {clusters}.courseid = ?";
+            $id_mapping = $DB->get_records_sql($sql, [intval($_POST['course'])]);
+            var_dump($id_mapping);
+            // TODO next: delete any section whose namespaced ID does not occur in the new list
+            // should also delete any course modules in that section and associated data, though that can wait
+            //
+            // then, clusters need to be updated (some could be deleted)
+            // bear in mind that the DB contains their YAML representation, so even old clusters should be updated
+            //
+            // then, new nodes and new sections need to be created, with manual completion assignments
+            //
+            // finally, availability should be recomputed for every section
+            //
+            // NOTE: this will look very similar to the code for 1st time course creation
+            // start by copying and making changes
         } else {
             echo html_writer::start_tag('p') . "Unknown usage mode." . html_writer::end_tag('p');
         }
