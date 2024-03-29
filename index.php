@@ -311,16 +311,14 @@ switch ($_SERVER['REQUEST_METHOD']) {
                     $absolute_svg_path = $location . "/course_structure.svg";
                     $unlocking_contents = file_get_contents($location . "/unlocking_conditions.json");
                     $directory_contents = array_diff(scandir($location), array('..', '.'));
-                    // how do I make this get just the cluster IDs?
                     $sql = "SELECT id FROM {clusters} WHERE courseid = ?";
                     $deleted_clusters = $DB->get_records_sql($sql, [$record->course]);
+                    echo("Deleted clusters:");
                     var_dump($deleted_clusters);
-                    // TODO: first delete nodes belonging to cluster
-                    // have: id, slug, clusters_id, course_sections_id, manual_completion_assignment
-                    // should delete any node which belongs to a deleted cluster...
-                    // can use array_map to get just the IDs, but how do I get an SQL `IN`?
+                    foreach ($deleted_clusters as $deleted_cluster) {
+                        $DB->delete_records("nodes", array("clusters_id" => $deleted_cluster->id));
+                    }
                     $DB->delete_records("clusters", array("courseid" => $record->course));
-                    
                     $cluster_ids = array();
                     foreach ($directory_contents as $file) {
                         if (is_dir($location . "/" . $file)) {
@@ -355,7 +353,6 @@ switch ($_SERVER['REQUEST_METHOD']) {
                         $node_record->course_sections_id = $topic_section_produced_metadata[$key]['moodle_section_id'];
                         $node_record->clusters_id = $cluster_ids[$cluster_name];
                         $node_record->manual_completion_assignment_id = $topic_section_produced_metadata[$key]['manual_completion_assignment_id'];
-                        var_dump($node_record);
                         $DB->insert_record("nodes", $node_record);
                     }
                     $namespaced_id_to_completion_id = function ($namespaced_id) use ($topic_section_produced_metadata) {
