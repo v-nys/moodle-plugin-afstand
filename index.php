@@ -436,11 +436,11 @@ switch ($_SERVER['REQUEST_METHOD']) {
             So I'll do the "JOIN" manually.
             */
             $course_clusters = $DB->get_records('clusters', array('courseid' => intval($_POST['course'])));
-            $new_id_mapping = array();
+            $id_mapping = array();
             foreach ($course_clusters as $cluster) {
                 $cluster_nodes = $DB->get_records('nodes', array('clusters_id' => $cluster->id));
                 foreach ($cluster_nodes as $node) {
-                    array_push($new_id_mapping, array(
+                    array_push($id_mapping, array(
                         'cluster_id' => $cluster->id,
                         'cluster_name' => $cluster->name,
                         'node_slug' => $node->slug,
@@ -448,15 +448,27 @@ switch ($_SERVER['REQUEST_METHOD']) {
                     ));
                 }
             }
-            var_dump($new_id_mapping);
-            // TODO next: delete any section of current course whose namespaced ID does not occur in the new list
-            // i.e. anything with an unknown combination of cluster ID and node slug which *does* have a course section in the current course
-            // should also delete any course modules in that section and associated data, though that can wait
+            $existing_course_nodes = $DB->get_records_list(
+                'nodes',
+                'clusters_id',
+                array_map(function ($cc) {
+                    return $cc->id;
+                }, $course_clusters)
+            );
+            $removed_course_nodes = array_filter($existing_course_nodes, function ($course_node) use ($id_mapping) {
+                $occurs = !empty(array_filter($id_mapping, function ($mapping_entry) use ($course_node) {
+                    return $mapping_entry['cluster_id'] === $course_node->clusters_id and $mapping_entry['node_slug'] === $course_node->slug;
+                }));
+                return !$occurs;
+            });
+            echo("The following nodes and their course_sections should be removed: ");
+            var_dump($removed_course_nodes);
             //
-            // then, clusters need to be updated (some could be deleted)
+            // next, clusters need to be updated (some could be deleted)
             // bear in mind that the DB contains their YAML representation, so even old clusters should be updated
+            // basically, use an upsert
             //
-            // then, new nodes and new sections need to be created, with manual completion assignments
+            // then, new nodes and new sections need to be created, with manual completion assignments, for new cluster+slug combinations
             //
             // finally, availability should be recomputed for every section
             //
