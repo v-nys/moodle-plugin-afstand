@@ -63,7 +63,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
     $topic_section_produced_metadata[$key]['moodle_section_id'] = $DB->insert_record('course_sections', $record);
     list($module, $moduleinfo_context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
     echo html_writer::start_tag('p') . "Beginning assignment creation." . html_writer::end_tag('p');
-    if (array_key_exists("assignments", $topic_section_consumed_metadata)) {
+    /*if (array_key_exists("assignments", $topic_section_consumed_metadata)) {
         foreach ($topic_section_consumed_metadata["assignments"] as $assignment_counter_for_topic => $assignment) {
             $description = $assignment['title'];
             $assignment_folder_location = $topic_section_location . "/" . $assignment["id"];
@@ -161,7 +161,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
             array_push($topic_section_produced_metadata[$key]['assignments'], $data->coursemodule);
             $preceding_course_module_id_in_section = $data->coursemodule;
         }
-    }
+    }*/
 
     echo html_writer::start_tag('p') . "TODO: Still need to add page element (i.e. lesson contents) and potentially URLs." . html_writer::end_tag('p');
 
