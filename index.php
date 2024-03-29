@@ -421,17 +421,36 @@ switch ($_SERVER['REQUEST_METHOD']) {
             echo html_writer::start_tag('p') . "Course recreation is complete." . html_writer::end_tag('p');
             break;
         } else if ($mode === 'update') {
-            echo ("fetching mapping");
             /*
+            Wanted to translate something like this (which works):
             SELECT mdl_clusters.name, mdl_nodes.slug, mdl_nodes.course_sections_id
             FROM mdl_clusters INNER JOIN mdl_nodes
             ON mdl_nodes.clusters_id = mdl_clusters.id
             WHERE mdl_clusters.courseid = 2; 
-            */
+
+            to something like:
             $sql = "SELECT {clusters}.name, {nodes}.slug, {nodes}.course_sections_id FROM {clusters} INNER JOIN {nodes} ON {nodes}.clusters_id = {clusters}.id WHERE {clusters}.courseid = ?";
             $id_mapping = $DB->get_records_sql($sql, [intval($_POST['course'])]);
-            var_dump($id_mapping);
-            // TODO next: delete any section whose namespaced ID does not occur in the new list
+
+            But can't really make sense of the output.
+            So I'll do the "JOIN" manually.
+            */
+            $course_clusters = $DB->get_records('clusters', array('courseid' => intval($_POST['course'])));
+            $new_id_mapping = array();
+            foreach ($course_clusters as $cluster) {
+                $cluster_nodes = $DB->get_records('nodes', array('clusters_id' => $cluster->id));
+                foreach ($cluster_nodes as $node) {
+                    array_push($new_id_mapping, array(
+                        'cluster_id' => $cluster->id,
+                        'cluster_name' => $cluster->name,
+                        'node_slug' => $node->slug,
+                        'course_section_id' => $node->course_sections_id
+                    ));
+                }
+            }
+            var_dump($new_id_mapping);
+            // TODO next: delete any section of current course whose namespaced ID does not occur in the new list
+            // i.e. anything with an unknown combination of cluster ID and node slug which *does* have a course section in the current course
             // should also delete any course modules in that section and associated data, though that can wait
             //
             // then, clusters need to be updated (some could be deleted)
