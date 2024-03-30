@@ -278,9 +278,6 @@ switch ($_SERVER['REQUEST_METHOD']) {
         echo html_writer::start_tag('input', array('type' => 'submit', 'value' => 'Recreate course'));
         echo html_writer::end_tag('form');
         break;
-
-
-
     case 'POST':
         $mode = $_POST['update_mode'];
         if ($mode === 'replace') {
@@ -432,7 +429,6 @@ switch ($_SERVER['REQUEST_METHOD']) {
                     }
                     $zip->extractTo($location);
                     $zip->close();
-                    // create a section for the course "map"
                     /*
                     Wanted to translate something like this (which works):
                     SELECT mdl_clusters.name, mdl_nodes.slug, mdl_nodes.course_sections_id
@@ -466,20 +462,21 @@ switch ($_SERVER['REQUEST_METHOD']) {
                     $removed_nodes = array_filter($existing_nodes, function ($node, $idx) use ($unlocking_conditions) {
                         return !in_array($node['cluster_name'] . '__' . $node['node_slug'], array_keys($unlocking_conditions));
                     }, ARRAY_FILTER_USE_BOTH);
-                    echo html_writer::start_tag('p') . "The following nodes and their course sections should be removed:" . html_writer::end_tag('p');
-                    var_dump($removed_nodes);
-                    // TODO: remove mdl_course_sections entry
-                    // TODO: remove mdl_nodes entry
+                    // there has to be a better way to write this than one operation per node...
+                    foreach ($removed_nodes as $removed_node) {
+                        $DB->delete_records('course_sections', array('id' => $removed_node['course_section_id']));
+                        $DB->delete_records('nodes', array('id' => $removed_node['node_id']));
+                    }
+
                     // next, clusters need to be updated (some (from $existing_course_clusters) could be removed, some could be added)
                     // bear in mind that the DB contains their YAML representation, so even old clusters should be updated
                     // basically, use an upsert
                     //
                     // then, new nodes and new sections need to be created, with manual completion assignments, for new cluster+slug combinations
                     //
-                    // finally, availability should be recomputed for every section
+                    // finally, availability should be reset for every section
                     //
-                    // NOTE: this will look very similar to the code for 1st time course creation
-                    // start by copying and making changes
+                    // NOTE: merge with course creation code once this is all done, should be feasible
                 } else {
                     echo html_writer::start_tag('p') . "Failed to open zip archive." . html_writer::end_tag('p');
                 }
