@@ -67,7 +67,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
     $contents = file_get_contents($content_location);
     list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'page', $section_number);
     $title = $topic_section_consumed_metadata["title"];
-    $data->name = "Uitleg";
+    $data->name = "Uitleg \"$title\"";
     $data->course = $course;
     $data->intro = text_to_html("Uitleg", false, false, true);
     $data->content = $contents; // misschien nodig text_to_html te gebruiken...
@@ -82,6 +82,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
     $data->completionunlocked = "1"; // see add_moduleinfo definition
     add_moduleinfo($data, $course);
 
+    $preceding_course_module_id_in_section = $data->coursemodule;
     list($module, $moduleinfo_context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
     echo html_writer::start_tag('p') . "Beginning assignment creation." . html_writer::end_tag('p');
     if (array_key_exists("assignments", $topic_section_consumed_metadata)) {
@@ -157,21 +158,18 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
             $data->completionexpected = 0;
             $data->completiongradeitemnumber = NULL;
             $data->introattachments = $attached_files;
-            if ($preceding_course_module_id_in_section >= 0) {
-                $availability = array(
-                    "op" => "&",
-                    "c" => [
-                        array(
-                            "type" => "completion",
-                            "cm" => "$preceding_course_module_id_in_section",
-                            "e" => 1
-                        )
-                    ],
-                    "showc" => [true]
-                );
-                $data->availability = json_encode($availability);
-            }
-            // TODO: otherwise, make this dependent on having read the instructions...
+            $availability = array(
+                "op" => "&",
+                "c" => [
+                    array(
+                        "type" => "completion",
+                        "cm" => "$preceding_course_module_id_in_section",
+                        "e" => 1
+                    )
+                ],
+                "showc" => [true]
+            );
+            $data->availability = json_encode($availability);
             echo html_writer::start_tag('p') . "Adding moduleinfo for $topic_title." . html_writer::end_tag('p');
             $result = add_moduleinfo($data, $course);
             // update seems to be needed because add_moduleinfo does not handle the intro field
@@ -185,24 +183,10 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
         }
     }
 
-/* TODO
-In `mdl_course_modules`:
-
-# id, course, module, instance, section, idnumber, added, score, indent, visible, visibleoncoursepage, visibleold, groupmode, groupingid, completion, completiongradeitemnumber, completionview, completionexpected, completionpassgrade, showdescription, availability, deletioninprogress, downloadcontent, lang
-  3,  3,      16,     1,        6,        ,        171.., 0,     0,      1,       1,                   1,          0,         0,          2,           ,                         1,              0,                  0,                   1,                ,            0,                  1, 
-
-In `mdl_page`:
-
-# id, course, name, intro,      introformat, content,                               contentformat, legacyfiles, legacyfileslast, display, displayoptions,                                                    revision, timemodified
-  1,  3,      test, <p>...</p>, 1,           <p>Hello<strong>, world!</strong></p>, 1,             0,            ,               5,       a:2:{s:10:"printintro";s:1:"1";s:17:"printlastmodified";s:1:"1";}, 1,        1711787501
-
-Eerstvolgende stap: Nieuwe zip maken.
-Dan uitproberen. Zou iets moeten zijn voor concept_Q.
-*/
     // add final assignment for manual completion
     list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
     $title = $topic_section_consumed_metadata["title"];
-    $data->name = "Manueel aanduiden via het vinkje: \"$title\" is duidelijk";
+    $data->name = "Manueel aanduiden: \"$title\" is duidelijk";
     $data->course = $course;
     // dit verschijnt niet, heeft dit te maken met ontbreken van veld rond regel 430 in mod/assign/externallib.php?
     // zie mss ook mod/assign/mod_form.php...
@@ -244,20 +228,18 @@ Dan uitproberen. Zou iets moeten zijn voor concept_Q.
     $data->completionunlocked = "1"; // see add_moduleinfo definition
     $data->completiongradeitemnumber = NULL;
     // don't make it possible to manually complete something if there are preceding assignments,...
-    if ($preceding_course_module_id_in_section >= 0) {
-        $availability = array(
-            "op" => "&",
-            "c" => [
-                array(
-                    "type" => "completion",
-                    "cm" => "$preceding_course_module_id_in_section",
-                    "e" => 1
-                )
-            ],
-            "showc" => [true]
-        );
-        $data->availability = json_encode($availability);
-    }
+    $availability = array(
+        "op" => "&",
+        "c" => [
+            array(
+                "type" => "completion",
+                "cm" => "$preceding_course_module_id_in_section",
+                "e" => 1
+            )
+        ],
+        "showc" => [true]
+    );
+    $data->availability = json_encode($availability);
     add_moduleinfo($data, $course);
     $preceding_course_module_id_in_section = $data->coursemodule;
     $topic_section_produced_metadata[$key]['manual_completion_assignment_id'] = $data->coursemodule;
