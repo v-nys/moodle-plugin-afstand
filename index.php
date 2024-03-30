@@ -470,8 +470,55 @@ switch ($_SERVER['REQUEST_METHOD']) {
 
                     // next, clusters need to be updated (some (from $existing_course_clusters) could be removed, some could be added)
                     // bear in mind that the DB contains their YAML representation, so even old clusters should be updated
-                    // basically, use an upsert
                     //
+                    // first, delete all clusters for the current course which don't exist any more
+                    // next, upsert the remaining clusters
+                    $sql = "SELECT id FROM {clusters} WHERE courseid = ?";
+                    $existing_clusters = $DB->get_records_sql($sql, [intval($_POST['course'])]);
+                    $directory_contents = array_diff(scandir($location), array('..', '.'));
+                    $upserted_cluster_names = array();
+                    foreach ($directory_contents as $file) {
+                        if (is_dir($location . "/" . $file)) {
+                            array_push($upserted_cluster_names, $file);
+                        }
+                    }
+                    // use IDs, because same cluster name can be used in different courses!
+                    $deleted_clusters = array_filter(
+                        $existing_clusters,
+                        function ($cluster, $idx) use ($upserted_cluster_names) {
+                            return !in_array($cluster->name, $upserted_cluster_names);
+                        },
+                        ARRAY_FILTER_USE_BOTH
+                    );
+                    echo html_writer::start_tag('p') . "Following old clusters will be deleted:" . html_writer::end_tag('p');
+                    var_dump($deleted_clusters);
+                    foreach ($deleted_clusters as $deleted_cluster) {
+                        $DB->delete_records('clusters', array('id' => $deleted_cluster->id));
+                    }
+                    $cluster_ids = array();
+                    foreach ($directory_contents as $file) {
+                        if (is_dir($location . "/" . $file)) {
+                            $cluster_record = new StdClass;
+                            $cluster_record->name = $file;
+                            $cluster_record->courseid = $record->course;
+                            $cluster_record->yaml = file_get_contents($location . "/" . $file . "/contents.lc.yaml");
+                            // PHP lacks a builtin find function
+                            $existing_cluster_record = null;
+                            foreach ($existing_clusters as $existing_cluster) {
+                                if ($existing_cluster->name === $file) {
+                                    $existing_cluster_record = $existing_cluster;
+                                    break;
+                                }
+                            }
+                            if (!is_null($existing_cluster_record)) {
+                                $cluster_record->id = $existing_cluster_record->id;
+                                $DB->update_record('clusters', $cluster_record);
+                                $cluster_ids[$file] = $cluster_record->id;
+                            } else {
+                                $cluster_ids[$file] = $DB->insert_record("clusters", $cluster_record);
+                            }
+                        }
+                    }
                     // then, new nodes and new sections need to be created, with manual completion assignments, for new cluster+slug combinations
                     //
                     // finally, availability should be reset for every section
