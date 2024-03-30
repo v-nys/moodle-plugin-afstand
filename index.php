@@ -61,6 +61,27 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
         "assignments" => []
     ];
     $topic_section_produced_metadata[$key]['moodle_section_id'] = $DB->insert_record('course_sections', $record);
+
+    // CREATE CONTENT PAGE
+    $content_location = $topic_section_location . "/" . "contents.html";
+    $contents = file_get_contents($content_location);
+    list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'page', $section_number);
+    $title = $topic_section_consumed_metadata["title"];
+    $data->name = "Uitleg";
+    $data->course = $course;
+    $data->intro = text_to_html("Uitleg", false, false, true);
+    $data->content = $contents; // misschien nodig text_to_html te gebruiken...
+    $data->printintro = true;
+    $data->showintro = true;
+    $data->introformat = FORMAT_HTML;
+    $data->alwaysshowdescription = false; // to do with temporal aspect
+    $data->visibleoncoursepage = true;
+    $data->completionview = COMPLETION_VIEW_REQUIRED;
+    $data->completion = COMPLETION_TRACKING_AUTOMATIC;
+    $data->completionexpected = 0;
+    $data->completionunlocked = "1"; // see add_moduleinfo definition
+    add_moduleinfo($data, $course);
+
     list($module, $moduleinfo_context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
     echo html_writer::start_tag('p') . "Beginning assignment creation." . html_writer::end_tag('p');
     if (array_key_exists("assignments", $topic_section_consumed_metadata)) {
@@ -150,6 +171,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
                 );
                 $data->availability = json_encode($availability);
             }
+            // TODO: otherwise, make this dependent on having read the instructions...
             echo html_writer::start_tag('p') . "Adding moduleinfo for $topic_title." . html_writer::end_tag('p');
             $result = add_moduleinfo($data, $course);
             // update seems to be needed because add_moduleinfo does not handle the intro field
@@ -163,9 +185,20 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
         }
     }
 
-    // TODO
-    echo html_writer::start_tag('p') . "TODO: Still need to add page element (i.e. lesson contents) and potentially URLs." . html_writer::end_tag('p');
+/* TODO
+In `mdl_course_modules`:
 
+# id, course, module, instance, section, idnumber, added, score, indent, visible, visibleoncoursepage, visibleold, groupmode, groupingid, completion, completiongradeitemnumber, completionview, completionexpected, completionpassgrade, showdescription, availability, deletioninprogress, downloadcontent, lang
+  3,  3,      16,     1,        6,        ,        171.., 0,     0,      1,       1,                   1,          0,         0,          2,           ,                         1,              0,                  0,                   1,                ,            0,                  1, 
+
+In `mdl_page`:
+
+# id, course, name, intro,      introformat, content,                               contentformat, legacyfiles, legacyfileslast, display, displayoptions,                                                    revision, timemodified
+  1,  3,      test, <p>...</p>, 1,           <p>Hello<strong>, world!</strong></p>, 1,             0,            ,               5,       a:2:{s:10:"printintro";s:1:"1";s:17:"printlastmodified";s:1:"1";}, 1,        1711787501
+
+Eerstvolgende stap: Nieuwe zip maken.
+Dan uitproberen. Zou iets moeten zijn voor concept_Q.
+*/
     // add final assignment for manual completion
     list($module, $context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
     $title = $topic_section_consumed_metadata["title"];
