@@ -63,7 +63,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
     $topic_section_produced_metadata[$key]['moodle_section_id'] = $DB->insert_record('course_sections', $record);
     list($module, $moduleinfo_context, $cw, $cmrec, $data) = prepare_new_moduleinfo_data($course, 'assign', $section_number);
     echo html_writer::start_tag('p') . "Beginning assignment creation." . html_writer::end_tag('p');
-    /*if (array_key_exists("assignments", $topic_section_consumed_metadata)) {
+    if (array_key_exists("assignments", $topic_section_consumed_metadata)) {
         foreach ($topic_section_consumed_metadata["assignments"] as $assignment_counter_for_topic => $assignment) {
             $description = $assignment['title'];
             $assignment_folder_location = $topic_section_location . "/" . $assignment["id"];
@@ -161,8 +161,9 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
             array_push($topic_section_produced_metadata[$key]['assignments'], $data->coursemodule);
             $preceding_course_module_id_in_section = $data->coursemodule;
         }
-    }*/
+    }
 
+    // TODO
     echo html_writer::start_tag('p') . "TODO: Still need to add page element (i.e. lesson contents) and potentially URLs." . html_writer::end_tag('p');
 
     // add final assignment for manual completion
@@ -250,6 +251,9 @@ switch ($_SERVER['REQUEST_METHOD']) {
         echo html_writer::start_tag('input', array('type' => 'radio', 'id' => 'update', 'name' => 'update_mode', 'value' => 'update'));
         echo html_writer::end_tag('input');
         echo html_writer::start_tag('label', array('for' => 'update'));
+        echo html_writer::start_tag('span', array('style' => 'color: red;'));
+        echo "(HIGHLY EXPERIMENTAL)";
+        echo html_writer::end_tag('span');
         echo "Update (retain existing content)";
         echo html_writer::end_tag('label');
         echo html_writer::end_tag('div');
@@ -467,12 +471,6 @@ switch ($_SERVER['REQUEST_METHOD']) {
                         $DB->delete_records('course_sections', array('id' => $removed_node['course_section_id']));
                         $DB->delete_records('nodes', array('id' => $removed_node['node_id']));
                     }
-
-                    // next, clusters need to be updated (some (from $existing_course_clusters) could be removed, some could be added)
-                    // bear in mind that the DB contains their YAML representation, so even old clusters should be updated
-                    //
-                    // first, delete all clusters for the current course which don't exist any more
-                    // next, upsert the remaining clusters
                     $sql = "SELECT id FROM {clusters} WHERE courseid = ?";
                     $existing_clusters = $DB->get_records_sql($sql, [intval($_POST['course'])]);
                     $directory_contents = array_diff(scandir($location), array('..', '.'));
@@ -519,9 +517,11 @@ switch ($_SERVER['REQUEST_METHOD']) {
                             }
                         }
                     }
-                    // then, new nodes and new sections need to be created, with manual completion assignments, for new cluster+slug combinations
+                    // previously existing nodes need to be updated and, if there are new assignments, manual completion assignments need to be reset
                     //
-                    // finally, availability should be reset for every section
+                    // new nodes and new sections need to be created, with manual completion assignments, for new cluster+slug combinations
+                    //
+                    // finally, availability should be reset for *every* section
                     //
                     // NOTE: merge with course creation code once this is all done, should be feasible
                 } else {
