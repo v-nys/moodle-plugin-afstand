@@ -383,6 +383,9 @@ switch ($_SERVER['REQUEST_METHOD']) {
                         $node_record->manual_completion_assignment_id = $topic_section_produced_metadata[$key]['manual_completion_assignment_id'];
                         $node_id = $DB->insert_record("nodes", $node_record);
                         $topic_section_produced_metadata[$key]['node_id'] = $node_id;
+                    }
+                    // separate for loop: makes sure all nodes have been handled once and mapping is possible
+                    foreach ($unlocking_conditions as $key => $completion_criteria) {
                         if ($completion_criteria) {
                             $course_section_id = $topic_section_produced_metadata[$key]['moodle_section_id'];
                             $course_section_record = $DB->get_record('course_sections', ['id' => $course_section_id]);
