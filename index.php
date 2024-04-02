@@ -343,10 +343,24 @@ switch ($_SERVER['REQUEST_METHOD']) {
                             $cluster_ids[$file] = $DB->insert_record("clusters", $cluster_record);
                         }
                     }
+                    $namespaced_id_to_completion_id = function ($namespaced_id) use ($topic_section_produced_metadata) {
+                        return $topic_section_produced_metadata[$namespaced_id]['manual_completion_assignment_id'];
+                    };
+                    $namespaced_id_to_node_id = function ($namespaced_id) use ($topic_section_produced_metadata) {
+                        return $topic_section_produced_metadata[$namespaced_id]['node_id'];
+                    };
+
+                    $completion_id_to_condition = function ($cm_id) {
+                        return array(
+                            "type" => "completion",
+                            "cm" => $cm_id,
+                            "e" => 1
+                        );
+                    };
                     $unlocking_conditions = json_decode($unlocking_contents, true);
                     // intended keys: moodle_section_id, manual_completion_assignment_id, assignments
                     $topic_section_produced_metadata = array();
-                    foreach ($unlocking_conditions as $key => $value) {
+                    foreach ($unlocking_conditions as $key => $completion_criteria) {
                         $id_components = explode("__", $key);
                         $cluster_name = $id_components[0];
                         $unnamespaced_id = $id_components[1];
@@ -367,24 +381,29 @@ switch ($_SERVER['REQUEST_METHOD']) {
                         $node_record->course_sections_id = $topic_section_produced_metadata[$key]['moodle_section_id'];
                         $node_record->clusters_id = $cluster_ids[$cluster_name];
                         $node_record->manual_completion_assignment_id = $topic_section_produced_metadata[$key]['manual_completion_assignment_id'];
-                        $DB->insert_record("nodes", $node_record);
-                    }
-                    $namespaced_id_to_completion_id = function ($namespaced_id) use ($topic_section_produced_metadata) {
-                        return $topic_section_produced_metadata[$namespaced_id]['manual_completion_assignment_id'];
-                    };
-                    $completion_id_to_condition = function ($cm_id) {
-                        return array(
-                            "type" => "completion",
-                            "cm" => $cm_id,
-                            "e" => 1
-                        );
-                    };
-                    foreach ($unlocking_conditions as $key => $completion_criteria) {
+                        $node_id = $DB->insert_record("nodes", $node_record);
+                        $topic_section_produced_metadata[$key]['node_id'] = $node_id;
                         if ($completion_criteria) {
                             $course_section_id = $topic_section_produced_metadata[$key]['moodle_section_id'];
                             $course_section_record = $DB->get_record('course_sections', ['id' => $course_section_id]);
                             $all_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['allOf']);
                             $one_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['oneOf']);
+                            $all_type_dependency_node_ids = array_map($namespaced_id_to_node_id, $completion_criteria['allOf']);
+                            $one_type_dependency_node_ids = array_map($namespaced_id_to_node_id, $completion_criteria['oneOf']);
+                            foreach ($all_type_dependency_node_ids as $all_type_id) {
+                                $prerequisite_record = new StdClass;
+                                $prerequisite_record->dependent = $node_id;
+                                $prerequisite_record->dependency = $all_type_id;
+                                $prerequisite_record->edge_type = "all";
+                                $DB->insert_record("node_prerequisites");
+                            }
+                            foreach ($one_type_dependency_node_ids as $one_type_id) {
+                                $prerequisite_record = new StdClass;
+                                $prerequisite_record->dependent = $node_id;
+                                $prerequisite_record->dependency = $one_type_id;
+                                $prerequisite_record->edge_type = "any";
+                                $DB->insert_record("node_prerequisites");
+                            }
                             $all_type_conditions = array_map($completion_id_to_condition, $all_type_dependency_completion_ids);
                             $one_type_conditions = array_map($completion_id_to_condition, $one_type_dependency_completion_ids);
                             // Moodle does not apply logical meaning (empty conjunction = true / empty disjunction = false)
