@@ -385,15 +385,29 @@ switch ($_SERVER['REQUEST_METHOD']) {
                         $topic_section_produced_metadata[$key]['node_id'] = $node_id;
                     }
                     // separate for loop: makes sure all nodes have been handled once and mapping is possible
+                    echo "Adding conditions...";
                     foreach ($unlocking_conditions as $key => $completion_criteria) {
+                        $node_id = $topic_section_produced_metadata[$key]['node_id'];
+                        echo "Node:";
+                        var_dump($node_id);
+                        echo "Metadata:";
+                        var_dump($topic_section_produced_metadata[$key]);
                         if ($completion_criteria) {
                             $course_section_id = $topic_section_produced_metadata[$key]['moodle_section_id'];
                             $course_section_record = $DB->get_record('course_sections', ['id' => $course_section_id]);
+                            echo "ALL, COMPLETION:";
                             $all_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['allOf']);
+                            var_dump($all_type_dependency_completions_ids);
+                            echo "ANY, COMPLETION:";
                             $one_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['oneOf']);
+                            var_dump($any_type_dependency_completions_ids);
+                            echo "ALL:";
                             $all_type_dependency_node_ids = array_map($namespaced_id_to_node_id, $completion_criteria['allOf']);
+                            var_dump($all_type_dependency_node_ids);
+                            echo "ANY:";
                             $one_type_dependency_node_ids = array_map($namespaced_id_to_node_id, $completion_criteria['oneOf']);
-                            foreach ($all_type_dependency_node_ids as $all_type_id) {
+                            var_dump($one_type_dependency_node_ids);
+                            /*foreach ($all_type_dependency_node_ids as $all_type_id) {
                                 $prerequisite_record = new StdClass;
                                 $prerequisite_record->dependent = $node_id;
                                 $prerequisite_record->dependency = $all_type_id;
@@ -406,9 +420,11 @@ switch ($_SERVER['REQUEST_METHOD']) {
                                 $prerequisite_record->dependency = $one_type_id;
                                 $prerequisite_record->edge_type = "any";
                                 $DB->insert_record("node_prerequisites", $prerequisite_record);
-                            }
+                            }*/
                             $all_type_conditions = array_map($completion_id_to_condition, $all_type_dependency_completion_ids);
+                            var_dump($all_type_conditions);
                             $one_type_conditions = array_map($completion_id_to_condition, $one_type_dependency_completion_ids);
+                            var_dump($one_type_conditions);
                             // Moodle does not apply logical meaning (empty conjunction = true / empty disjunction = false)
                             // otherwise, conjunction && disjunction would be sufficient
                             $conjunction = array(
