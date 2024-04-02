@@ -395,14 +395,14 @@ switch ($_SERVER['REQUEST_METHOD']) {
                                 $prerequisite_record->dependent = $node_id;
                                 $prerequisite_record->dependency = $all_type_id;
                                 $prerequisite_record->edge_type = "all";
-                                $DB->insert_record("node_prerequisites");
+                                $DB->insert_record("node_prerequisites", $prerequisite_record);
                             }
                             foreach ($one_type_dependency_node_ids as $one_type_id) {
                                 $prerequisite_record = new StdClass;
                                 $prerequisite_record->dependent = $node_id;
                                 $prerequisite_record->dependency = $one_type_id;
                                 $prerequisite_record->edge_type = "any";
-                                $DB->insert_record("node_prerequisites");
+                                $DB->insert_record("node_prerequisites", $prerequisite_record);
                             }
                             $all_type_conditions = array_map($completion_id_to_condition, $all_type_dependency_completion_ids);
                             $one_type_conditions = array_map($completion_id_to_condition, $one_type_dependency_completion_ids);
