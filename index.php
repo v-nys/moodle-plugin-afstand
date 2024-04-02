@@ -398,7 +398,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
                                 $record->edge_type = "all";
                                 $record->dependent = $node_id;
                                 $record->dependency = $dependency_id;
-                                $DB->insert('node_prerequisites', $record);
+                                $DB->insert_record('node_prerequisites', $record);
                             }
 
                             foreach ($one_type_dependency_node_ids as $dependency_id) {
@@ -406,7 +406,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
                                 $record->edge_type = "any";
                                 $record->dependent = $node_id;
                                 $record->dependency = $dependency_id;
-                                $DB->insert('node_prerequisites', $record);
+                                $DB->insert_record('node_prerequisites', $record);
                             }
 
 
