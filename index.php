@@ -88,7 +88,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
     if (array_key_exists("assignments", $topic_section_consumed_metadata)) {
         foreach ($topic_section_consumed_metadata["assignments"] as $assignment_counter_for_topic => $assignment) {
             $description = $assignment['title'];
-            $assignment_folder_location = $topic_section_location . "/" . $assignment["id"];
+            $assignment_folder_location = $topic_section_location . "/assignments/" . $assignment["id"];
             // for now, just set this via $data->intro or something
             $assignment_description_location = $assignment_folder_location . "/contents.md";
             if (array_key_exists("attachments", $assignment)) {
