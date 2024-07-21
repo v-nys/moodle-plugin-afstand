@@ -60,6 +60,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
     $topic_section_produced_metadata[$key] = [
         "assignments" => []
     ];
+    echo "inserting into course_sections";
     $topic_section_produced_metadata[$key]['moodle_section_id'] = $DB->insert_record('course_sections', $record);
 
     // CREATE CONTENT PAGE
@@ -80,6 +81,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
     $data->completion = COMPLETION_TRACKING_AUTOMATIC;
     $data->completionexpected = 0;
     $data->completionunlocked = "1"; // see add_moduleinfo definition
+    echo "adding moduleinfo";
     add_moduleinfo($data, $course);
 
     $preceding_course_module_id_in_section = $data->coursemodule;
@@ -95,7 +97,7 @@ function create_course_topic($DB, $course, $key, $topic_section_produced_metadat
                 $attached_files = [];
                 foreach ($assignment['attachments'] as $attachment_filename) {
                     echo html_writer::start_tag('p') . "Adding attachment $attachment_filename." . html_writer::end_tag('p');
-                    $attachment_location = $assignment_folder_location . "/" . $attachment_filename;
+                    $attachment_location = $assignment_folder_location . "/attachments/" . $attachment_filename;
                     // FIXME: missing contextid?
                     $attachment_filerecord = [
                         'filearea'  => "draft", // same as for manually created ones...
@@ -388,10 +390,10 @@ switch ($_SERVER['REQUEST_METHOD']) {
                         if ($completion_criteria) {
                             $course_section_id = $topic_section_produced_metadata[$key]['moodle_section_id'];
                             $course_section_record = $DB->get_record('course_sections', ['id' => $course_section_id]);
-                            $all_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['allOf']);
-                            $one_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['oneOf']);
-                            $all_type_dependency_node_ids = array_map($namespaced_id_to_node_id, $completion_criteria['allOf']);
-                            $one_type_dependency_node_ids = array_map($namespaced_id_to_node_id, $completion_criteria['oneOf']);
+                            $all_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['all_of']);
+                            $one_type_dependency_completion_ids = array_map($namespaced_id_to_completion_id, $completion_criteria['one_of']);
+                            $all_type_dependency_node_ids = array_map($namespaced_id_to_node_id, $completion_criteria['all_of']);
+                            $one_type_dependency_node_ids = array_map($namespaced_id_to_node_id, $completion_criteria['one_of']);
 
                             foreach ($all_type_dependency_node_ids as $dependency_id) {
                                 $record = new StdClass();
