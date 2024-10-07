@@ -299,11 +299,23 @@ switch ($_SERVER['REQUEST_METHOD']) {
         echo html_writer::end_tag('input');
         echo html_writer::end_tag('div');
 
+        echo html_writer::start_tag('div');
+        echo html_writer::start_tag('p');
+        echo "If the goal is to add new sections to an existing course, set to the existing maximum + 1. Otherwise, set to 1.";
+        echo html_writer::end_tag('p');
+        echo html_writer::start_tag('label', array('for' => 'initial-section-id'));
+        echo "Initial section ID:";
+        echo html_writer::end_tag('label');
+        echo html_writer::start_tag('input', array('type' => 'number', 'id' => 'initial-section-id', 'name' => 'initial-section-id'));
+        echo html_writer::end_tag('input');
+        echo html_writer::end_tag('div');
+
         echo html_writer::start_tag('input', array('type' => 'submit', 'value' => 'Recreate course'));
         echo html_writer::end_tag('form');
         break;
     case 'POST':
         $mode = $_POST['update_mode'];
+        $next_created_section_number = intval($_POST['initial-section-id']);
         if ($mode === 'replace') {
             $course = $DB->get_record('course', ['id' => intval($_POST['course'])]);
             $DB->delete_records('course_modules', array('course' => $course->id));
