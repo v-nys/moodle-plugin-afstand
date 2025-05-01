@@ -16,7 +16,7 @@
 
 /** Test plugin for development.
  * @package     local_distance
- * @copyright   2022-2024 Vincent Nys <vincent.nys@ap.be>
+ * @copyright   2022-2025 Vincent Nys <vincent.nys@ap.be>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 require_once('../../config.php'); // Meestal nodig.
@@ -356,7 +356,6 @@ switch ($_SERVER['REQUEST_METHOD']) {
                             $cluster_record = new StdClass;
                             $cluster_record->name = $file;
                             $cluster_record->courseid = $record->course;
-                            $cluster_record->yaml = file_get_contents($location . "/" . $file . "/contents.lc.yaml");
                             $cluster_ids[$file] = $DB->insert_record("clusters", $cluster_record);
                         }
                     }
@@ -558,7 +557,6 @@ switch ($_SERVER['REQUEST_METHOD']) {
                             $cluster_record = new StdClass;
                             $cluster_record->name = $file;
                             $cluster_record->courseid = $record->course;
-                            $cluster_record->yaml = file_get_contents($location . "/" . $file . "/contents.lc.yaml");
                             // PHP lacks a builtin find function
                             $existing_cluster_record = null;
                             foreach ($existing_clusters as $existing_cluster) {
